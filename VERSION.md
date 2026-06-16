@@ -190,3 +190,159 @@ Known limitations:
 - Manual Stand Upright rotates in 90-degree X-axis increments; it is a recovery control, not semantic CAD orientation.
 - V1 edit controls are sidebar-driven for stability; direct viewport gizmos should return through a custom controller or a validated dependency upgrade.
 - Tauri scaffolding is not installed yet because signing identity, bundle ID, icon export, and installer ownership details are still external setup decisions.
+
+## v0.7.4-camera-drop-stability
+
+Saved: 2026-06-16
+
+Camera, turntable, drag/drop, and button reliability pass.
+
+Fixed:
+- Turntable now rotates a stage wrapper instead of mutating the same object group used by user transforms.
+- Manual model rotation no longer changes the saved basis used by automatic view rotation.
+- Drag/drop import now handles dragenter/dragover/dragleave/drop consistently and supports dropping multiple files.
+- File picker now supports selecting multiple model files.
+- Smart Suggest now provides contextual guidance instead of being an inert active button.
+- Camera bookmarks now capture and restore real camera position and OrbitControls target.
+
+Verified:
+- Production build passes.
+- ESLint passes.
+
+Known limitations:
+- Camera bookmarks are session/project metadata only; project import/loading is still needed before bookmarks can survive a fresh app launch.
+- Drag/drop still depends on browser file APIs; folder drops and zipped asset packs are not supported yet.
+
+## v0.7.5-stl-import-recovery
+
+Saved: 2026-06-16
+
+STL import crash recovery patch.
+
+Fixed:
+- Replaced the STL measurement overlay's Drei/Troika line and text renderers with native Three lines and DOM labels.
+- Fixed the `baseMaterial.addEventListener is not a function` viewport recovery crash seen after STL drag/drop.
+- STL sniffing now rejects fake `.stl` files that are actually downloaded HTML/text documents before Three.js can mis-detect them as geometry.
+- Valid binary STL files with usable byte-aligned payloads still parse through the bounded preview loader.
+
+Verified:
+- Production build passes.
+- ESLint passes.
+- Parser smoke test rejects an HTML document named `.stl` with a clear import error.
+- Parser smoke test loads real binary STL files at 258,350 and 206,990 triangles, auto-normalizes them, and keeps finite bounds.
+
+## v0.7.6-upright-floor-stability
+
+Saved: 2026-06-16
+
+Manual orientation and floor stability patch.
+
+Fixed:
+- Stand Upright now works on the built-in demo instead of silently doing nothing.
+- Imported model Stand Upright now evaluates multiple 90-degree candidate orientations, chooses the strongest upright pose, and drops the object back to the floor.
+- Removed the temporal accumulated shadow layer that could shimmer against the reflective floor.
+- Repositioned the floor, contact shadow, and grid with stable offsets to reduce depth-fighting flicker.
+
+Verified:
+- Production build passes.
+- ESLint passes.
+- Browser reload shows a live canvas, no viewport recovery card, and no console errors.
+- Stand Upright button click changes the visible rotation readout without renderer errors.
+
+## v0.7.7-orientation-controls
+
+Saved: 2026-06-16
+
+Orientation UX enhancement pass.
+
+Added:
+- New quick orientation panel with Roll Left, Roll Right, Turn Left, Turn Right, Tilt Back, and Tilt Forward.
+- New one-click Flip X, Flip Y, and Flip Z controls for 180-degree object flips.
+- Rotation fine controls now use Pitch, Yaw, and Roll labels instead of RX/RY/RZ shorthand.
+- Shared rotate action in the viewer store so quick rotations support undo and floor correction for imported models.
+
+Verified:
+- Production build passes.
+- ESLint passes.
+- Browser reload shows the new controls with a live canvas and no console errors.
+- Roll Left and Flip Y update the visible rotation readout without renderer errors.
+
+## v0.7.8-auto-center
+
+Saved: 2026-06-16
+
+Object centering control patch.
+
+Added:
+- Auto Center action for the selected object.
+- Imported models are centered from their real transformed bounds, then kept on the floor.
+- Demo object fallback recenters X/Z to the scene origin.
+- Auto Center button added beside Drop To Floor and Stand Upright.
+
+Verified:
+- Production build passes.
+- ESLint passes.
+- Browser reload shows Auto Center with a live canvas and no console errors.
+- Moving the demo object on X and clicking Auto Center returns the position readout to center.
+
+## v0.7.9-render-budget-stability
+
+Saved: 2026-06-16
+
+Render budget and flicker reduction pass.
+
+Changed:
+- Replaced the old four quality modes with three clearer modes: Performance, Balanced, and Studio.
+- Balanced now uses a stable matte floor, reduced DPR, static contact shadows, reduced particles, and no full post-processing stack.
+- Performance disables shadows, particles, reflections, and post-FX for maximum stability on heavy files.
+- Studio keeps reflections and cinematic post-FX but at reduced reflection resolution and softer effect settings.
+- WebGL pressure recovery now falls back to Performance mode.
+- Render Budget buttons now explain their GPU tradeoffs directly in the UI.
+
+Verified:
+- Production build passes.
+- ESLint passes.
+- Browser reload shows only Performance, Balanced, and Studio.
+- Switching Performance -> Balanced -> Studio -> Balanced keeps the canvas alive with no viewport recovery card and no console errors.
+
+## v0.7.10-background-modes
+
+Saved: 2026-06-16
+
+Scene background mood pass.
+
+Added:
+- Independent background modes separate from HDR lighting presets.
+- Background choices: Obsidian, Graphite, Arctic, Midnight, Ember, and Hologram.
+- Background modes update scene background, fog, floor tone, and grid colors.
+- Inspector swatch controls for quickly changing the viewport mood.
+- Project export now includes the selected background mode.
+
+Verified:
+- Production build passes.
+- ESLint passes.
+- Browser reload shows the background controls with a live canvas and no console errors.
+- Arctic, Ember, and Graphite background switches keep the viewport alive with no recovery card.
+
+## v0.7.11-brand-logo-polish
+
+Saved: 2026-06-16
+
+Logo and brand UI polish pass.
+
+Fixed:
+- Replaced the cropped boxed header logo with a transparent logo mark cutout.
+- Header logo now uses contain sizing instead of cover cropping, so the mark is no longer cut off.
+- Removed the visible logo bounding box in the app chrome.
+- Downscaled the served logo mark to 320 px for faster UI loading.
+
+Changed:
+- Updated the app shell toward the supplied logo palette: graphite, electric cyan, violet, and magenta.
+- Updated the font stack toward Helvetica Now / Helvetica Neue / SF for a cleaner UI.
+- Added lightweight CSS-only chrome and panel motion with reduced-motion fallback.
+
+Verified:
+- Production build passes.
+- ESLint passes.
+- Logo asset serves from `/brand/3dope-logo-mark.png`.
+- Logo PNG has transparent corners and is 121 KB after optimization.

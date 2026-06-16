@@ -62,10 +62,16 @@ export async function loadModelFile(file: File): Promise<ParsedModel> {
 }
 
 function parseStlGeometry(buffer: ArrayBuffer, name: string) {
-  if (isBinaryStl(buffer)) {
+  const stlKind = classifyStl(buffer);
+
+  if (stlKind === 'binary') {
     const geometry = parseBinaryStlPreview(buffer, name);
     geometry.computeVertexNormals();
     return geometry;
+  }
+
+  if (stlKind === 'invalid') {
+    throw new Error(`${name} is not a valid STL file. It looks like a downloaded web page or unsupported text file, not mesh geometry.`);
   }
 
   try {
@@ -99,21 +105,37 @@ function assertRenderableGeometry(geometry: THREE.BufferGeometry, name: string) 
   }
 }
 
-function isBinaryStl(buffer: ArrayBuffer) {
-  if (buffer.byteLength < 84) return false;
+function classifyStl(buffer: ArrayBuffer): 'ascii' | 'binary' | 'invalid' {
+  if (buffer.byteLength < 15) return 'invalid';
+  if (looksLikeAsciiStl(buffer)) return 'ascii';
+  if (buffer.byteLength < 84) return 'invalid';
+
   const reader = new DataView(buffer);
   const storedFaces = reader.getUint32(80, true);
   const expectedBytes = 84 + storedFaces * 50;
   const payloadBytes = buffer.byteLength - 84;
 
-  if (expectedBytes === buffer.byteLength) return true;
-  return payloadBytes % 50 === 0 && !looksLikeAsciiStl(buffer);
+  if (expectedBytes === buffer.byteLength) return 'binary';
+  if (payloadBytes > 0 && payloadBytes % 50 === 0 && !looksLikeTextDocument(buffer)) return 'binary';
+  return 'invalid';
 }
 
 function looksLikeAsciiStl(buffer: ArrayBuffer) {
   const sample = new Uint8Array(buffer, 0, Math.min(buffer.byteLength, 2048));
   const text = new TextDecoder('utf-8', { fatal: false }).decode(sample).trimStart().toLowerCase();
   return text.startsWith('solid') && !text.includes('\0') && (text.includes('facet') || text.includes('endsolid'));
+}
+
+function looksLikeTextDocument(buffer: ArrayBuffer) {
+  const sample = new Uint8Array(buffer, 0, Math.min(buffer.byteLength, 512));
+  const text = new TextDecoder('utf-8', { fatal: false }).decode(sample).trimStart().toLowerCase();
+  return (
+    text.startsWith('<!doctype html') ||
+    text.startsWith('<html') ||
+    text.startsWith('<?xml') ||
+    text.startsWith('{') ||
+    text.startsWith('[')
+  );
 }
 
 function parseBinaryStlPreview(buffer: ArrayBuffer, name: string) {

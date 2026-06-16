@@ -7,9 +7,11 @@ export type RenderMode =
   | 'technical'
   | 'neon';
 
-export type QualityMode = 'eco' | 'balanced' | 'cinematic' | 'ultra';
+export type QualityMode = 'performance' | 'balanced' | 'studio';
 
 export type LightingPreset = 'obsidian' | 'atelier' | 'horizon' | 'surgical' | 'hologram';
+
+export type BackgroundMode = 'obsidian' | 'graphite' | 'arctic' | 'midnight' | 'ember' | 'hologram';
 
 export type ImportFormat = 'stl' | 'glb' | 'gltf' | 'fbx' | 'obj' | 'usdz' | 'step' | 'ply' | 'blend' | 'unknown';
 
@@ -79,4 +81,6 @@ export interface CameraBookmark {
   id: string;
   name: string;
   createdAt: number;
+  position: [number, number, number];
+  target: [number, number, number];
 }

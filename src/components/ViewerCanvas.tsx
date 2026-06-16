@@ -1,10 +1,10 @@
 import { Canvas, type ThreeEvent, useFrame, useThree } from '@react-three/fiber';
-import { AccumulativeShadows, ContactShadows, Environment, Float, Html, Line, MeshReflectorMaterial, OrbitControls, PerspectiveCamera, RandomizedLight, Sparkles, Text, useDetectGPU } from '@react-three/drei';
+import { ContactShadows, Environment, Float, Html, MeshReflectorMaterial, OrbitControls, PerspectiveCamera, Sparkles, useDetectGPU } from '@react-three/drei';
 import { Bloom, DepthOfField, EffectComposer, Noise, SSAO, Vignette } from '@react-three/postprocessing';
 import { Suspense, useEffect, useMemo, useRef, type ReactElement } from 'react';
 import * as THREE from 'three';
 import { useViewerStore } from '../store/viewerStore';
-import type { AssetDiagnostics, ClippingAxis, LightingPreset, MaterialControls, QualityMode, RenderMode, UnitSystem } from '../types/viewer';
+import type { AssetDiagnostics, BackgroundMode, ClippingAxis, LightingPreset, MaterialControls, QualityMode, RenderMode, UnitSystem } from '../types/viewer';
 
 const modeMaterials: Record<RenderMode, THREE.MeshStandardMaterialParameters> = {
   showcase: { color: '#d8dee9', metalness: 0.72, roughness: 0.23 },
@@ -24,21 +24,36 @@ const lighting: Record<LightingPreset, { env: string; key: string; rim: string; 
   hologram: { env: 'night', key: '#90fff7', rim: '#8878ff', intensity: 2.4, bg: '#020611' }
 };
 
-const qualityDpr: Record<QualityMode, [number, number]> = {
-  eco: [0.75, 1],
-  balanced: [1, 1.5],
-  cinematic: [1, 2],
-  ultra: [1.25, 2]
+const backgrounds: Record<BackgroundMode, { bg: string; fog: string; floor: string; gridA: string; gridB: string }> = {
+  obsidian: { bg: '#030306', fog: '#030306', floor: '#07080b', gridA: '#2e5669', gridB: '#121a22' },
+  graphite: { bg: '#0a0b0c', fog: '#090a0c', floor: '#101214', gridA: '#49525b', gridB: '#20262c' },
+  arctic: { bg: '#eef5f8', fog: '#dce8ee', floor: '#d9e2e7', gridA: '#7d9aaa', gridB: '#b4c6cf' },
+  midnight: { bg: '#020712', fog: '#020712', floor: '#06101f', gridA: '#224469', gridB: '#0b1b2e' },
+  ember: { bg: '#120806', fog: '#120806', floor: '#1b0d09', gridA: '#70412f', gridB: '#271510' },
+  hologram: { bg: '#020611', fog: '#020611', floor: '#031018', gridA: '#226e75', gridB: '#0a252e' }
+};
+
+const renderProfiles: Record<QualityMode, {
+  dpr: [number, number];
+  shadows: boolean;
+  floor: 'matte' | 'reflective';
+  postFx: boolean;
+  sparkles: number;
+}> = {
+  performance: { dpr: [0.75, 1], shadows: false, floor: 'matte', postFx: false, sparkles: 0 },
+  balanced: { dpr: [1, 1.35], shadows: true, floor: 'matte', postFx: false, sparkles: 24 },
+  studio: { dpr: [1, 1.75], shadows: true, floor: 'reflective', postFx: true, sparkles: 56 }
 };
 
 export function ViewerCanvas() {
   const qualityMode = useViewerStore((state) => state.qualityMode);
+  const profile = renderProfiles[qualityMode];
   const gpu = useDetectGPU();
 
   return (
     <Canvas
       className="viewer-canvas"
-      dpr={qualityDpr[qualityMode]}
+      dpr={profile.dpr}
       gl={{
         antialias: true,
         alpha: false,
@@ -46,7 +61,7 @@ export function ViewerCanvas() {
         toneMapping: THREE.ACESFilmicToneMapping,
         toneMappingExposure: 1.15
       }}
-      shadows="soft"
+      shadows={profile.shadows ? 'soft' : false}
       performance={{ min: 0.55 }}
       onCreated={({ gl }) => {
         gl.localClippingEnabled = true;
@@ -69,7 +84,7 @@ function WebglRecoveryBridge() {
     const canvas = gl.domElement;
     const handleContextLost = (event: Event) => {
       event.preventDefault();
-      setQualityMode('eco');
+      setQualityMode('performance');
       setImportNotice({
         id: crypto.randomUUID(),
         tone: 'warn',
@@ -101,6 +116,7 @@ function WebglRecoveryBridge() {
 function Scene() {
   const renderMode = useViewerStore((state) => state.renderMode);
   const lightingPreset = useViewerStore((state) => state.lightingPreset);
+  const backgroundMode = useViewerStore((state) => state.backgroundMode);
   const qualityMode = useViewerStore((state) => state.qualityMode);
   const selectedAssetId = useViewerStore((state) => state.selectedAssetId);
   const importedObject = useViewerStore((state) => (state.selectedAssetId ? state.sceneObjects[state.selectedAssetId] : undefined));
@@ -116,16 +132,18 @@ function Scene() {
   const clippingOffset = useViewerStore((state) => state.clippingOffset);
   const clippingInverted = useViewerStore((state) => state.clippingInverted);
   const preset = lighting[lightingPreset];
+  const background = backgrounds[backgroundMode];
+  const profile = renderProfiles[qualityMode];
 
   return (
     <>
       <ClippingController enabled={clippingEnabled} axis={clippingAxis} offset={clippingOffset} inverted={clippingInverted} />
-      <color attach="background" args={[preset.bg]} />
-      <fog attach="fog" args={[preset.bg, 9, 26]} />
+      <color attach="background" args={[background.bg]} />
+      <fog attach="fog" args={[background.fog, 9, 26]} />
       <PerspectiveCamera makeDefault position={[4.4, 2.8, 5.4]} fov={38} />
       <CameraRig />
       <ambientLight intensity={0.18} />
-      <directionalLight position={[4, 6, 5]} intensity={preset.intensity} color={preset.key} castShadow shadow-mapSize={[2048, 2048]} />
+      <directionalLight position={[4, 6, 5]} intensity={preset.intensity} color={preset.key} castShadow={profile.shadows} shadow-mapSize={[1024, 1024]} />
       <pointLight position={[-4, 2.2, -3]} intensity={55} color={preset.rim} distance={9} />
       <Environment preset={preset.env as never} background={false} environmentIntensity={1.15} />
 
@@ -137,20 +155,13 @@ function Scene() {
         )}
       </EditableStage>
 
-      <ReflectiveFloor preset={lightingPreset} />
-      {!heavyModel && (
-        <>
-          <AccumulativeShadows temporal frames={64} alphaTest={0.78} scale={9} position={[0, -1.28, 0]} color={preset.rim} opacity={0.48}>
-            <RandomizedLight amount={8} radius={5} ambient={0.3} intensity={1.4} position={[4, 5, 3]} bias={0.001} />
-          </AccumulativeShadows>
-          <ContactShadows position={[0, -1.22, 0]} opacity={0.42} scale={8} blur={2.8} far={4} />
-        </>
-      )}
-      <gridHelper args={[12, 24, '#2e5669', '#121a22']} position={[0, -1.25, 0]} />
+      <ReflectiveFloor preset={lightingPreset} backgroundMode={backgroundMode} qualityMode={qualityMode} />
+      {profile.shadows && !heavyModel && <ContactShadows position={[0, -1.196, 0]} opacity={qualityMode === 'studio' ? 0.36 : 0.24} scale={8} blur={qualityMode === 'studio' ? 2.8 : 2.1} far={3.2} frames={1} />}
+      <gridHelper args={[12, 24, background.gridA, background.gridB]} position={[0, -1.198, 0]} />
       {clippingEnabled && selectedDiagnostics ? <ClippingGuide diagnostics={selectedDiagnostics} axis={clippingAxis} offset={clippingOffset} inverted={clippingInverted} /> : null}
       {measurementsVisible && selectedDiagnostics ? <MeasurementOverlay diagnostics={selectedDiagnostics} unitSystem={unitSystem} /> : null}
       {measurementsVisible && measurementPoints.length > 0 ? <PointMeasurementOverlay points={measurementPoints} unitSystem={unitSystem} /> : null}
-      <Sparkles count={qualityMode === 'eco' ? 24 : 72} scale={8} size={1.2} speed={0.18} color={preset.rim} opacity={0.36} />
+      {profile.sparkles > 0 ? <Sparkles count={profile.sparkles} scale={8} size={1.1} speed={0.12} color={preset.rim} opacity={qualityMode === 'studio' ? 0.3 : 0.18} /> : null}
       <PostFX qualityMode={qualityMode} renderMode={renderMode} heavyModel={heavyModel} />
     </>
   );
@@ -203,9 +214,9 @@ function MeasurementOverlay({ diagnostics, unitSystem }: { diagnostics: AssetDia
 
   return (
     <group>
-      <Line points={[[min[0], y, max[2] + labelOffset], [max[0], y, max[2] + labelOffset]]} color="#72f7ff" lineWidth={1.4} transparent opacity={0.82} />
-      <Line points={[[max[0] + labelOffset, y, min[2]], [max[0] + labelOffset, y, max[2]]]} color="#ffd166" lineWidth={1.4} transparent opacity={0.82} />
-      <Line points={[[min[0] - labelOffset, min[1], min[2]], [min[0] - labelOffset, max[1], min[2]]]} color="#a7ff83" lineWidth={1.4} transparent opacity={0.82} />
+      <NativeLine points={[[min[0], y, max[2] + labelOffset], [max[0], y, max[2] + labelOffset]]} color="#72f7ff" opacity={0.82} />
+      <NativeLine points={[[max[0] + labelOffset, y, min[2]], [max[0] + labelOffset, y, max[2]]]} color="#ffd166" opacity={0.82} />
+      <NativeLine points={[[min[0] - labelOffset, min[1], min[2]], [min[0] - labelOffset, max[1], min[2]]]} color="#a7ff83" opacity={0.82} />
       <DimensionLabel position={[(min[0] + max[0]) / 2, y + 0.08, max[2] + labelOffset]} color="#72f7ff" text={`W ${format(size[0])}`} />
       <DimensionLabel position={[max[0] + labelOffset, y + 0.08, (min[2] + max[2]) / 2]} color="#ffd166" text={`D ${format(size[2])}`} />
       <DimensionLabel position={[min[0] - labelOffset, (min[1] + max[1]) / 2, min[2]]} color="#a7ff83" text={`H ${format(size[1])}`} />
@@ -235,14 +246,12 @@ function ClippingGuide({ diagnostics, axis, offset, inverted }: { diagnostics: A
         <planeGeometry args={[size, size]} />
         <meshBasicMaterial color="#72f7ff" transparent opacity={0.18} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
-      <Line
+      <NativeLine
         points={[
           axis === 'x' ? [offset, center[1] - size / 2, center[2] - size / 2] : axis === 'y' ? [center[0] - size / 2, offset, center[2] - size / 2] : [center[0] - size / 2, center[1] - size / 2, offset],
           axis === 'x' ? [offset, center[1] + size / 2, center[2] + size / 2] : axis === 'y' ? [center[0] + size / 2, offset, center[2] + size / 2] : [center[0] + size / 2, center[1] + size / 2, offset]
         ]}
         color="#72f7ff"
-        lineWidth={1.2}
-        transparent
         opacity={0.72}
       />
       <DimensionLabel position={[position[0], position[1] + size * 0.52, position[2]]} color="#72f7ff" text={`${axisLabel} slice ${offset.toFixed(2)}`} />
@@ -252,14 +261,30 @@ function ClippingGuide({ diagnostics, axis, offset, inverted }: { diagnostics: A
 
 function DimensionLabel({ position, color, text }: { position: [number, number, number]; color: string; text: string }) {
   return (
-    <Text position={position} fontSize={0.08} color={color} anchorX="center" anchorY="middle" outlineColor="#030306" outlineWidth={0.012}>
-      {text}
-    </Text>
+    <Html position={position} center distanceFactor={7} transform={false} zIndexRange={[4, 0]}>
+      <span className="dimension-label" style={{ color }}>{text}</span>
+    </Html>
   );
 }
 
+function NativeLine({ points, color, opacity = 1 }: { points: [number, number, number][]; color: string; opacity?: number }) {
+  const line = useMemo(() => {
+    const lineGeometry = new THREE.BufferGeometry();
+    lineGeometry.setFromPoints(points.map((point) => new THREE.Vector3(...point)));
+    const lineMaterial = new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthTest: false });
+    return new THREE.Line(lineGeometry, lineMaterial);
+  }, [color, opacity, points]);
+
+  useEffect(() => () => {
+    line.geometry.dispose();
+    if (line.material instanceof THREE.Material) line.material.dispose();
+  }, [line]);
+
+  return <primitive object={line} />;
+}
+
 function EditableStage({ editMode, children }: { editMode: boolean; children: ReactElement }) {
-  const group = useRef<THREE.Group | null>(null);
+  const turntableGroup = useRef<THREE.Group | null>(null);
   const turntable = useViewerStore((state) => state.turntable);
   const selectedAssetId = useViewerStore((state) => state.selectedAssetId);
   const transform = useViewerStore((state) => (state.selectedAssetId ? state.objectTransforms[state.selectedAssetId] : undefined));
@@ -275,13 +300,14 @@ function EditableStage({ editMode, children }: { editMode: boolean; children: Re
   }, [editMode, setTransformDragging]);
 
   useFrame((_, delta) => {
-    if (group.current && turntable && !editMode) group.current.rotation.y += delta * 0.28;
+    if (turntableGroup.current && turntable && !editMode && !pointMeasurementMode) {
+      turntableGroup.current.rotation.y += delta * 0.28;
+    }
   });
 
-  const stageObject = (
+  const transformedObject = (
     <group
       key={selectedAssetId ?? 'unselected'}
-      ref={group}
       position={transform?.position ?? [0, 0, 0]}
       rotation={transform?.rotation ?? [0, 0, 0]}
       scale={transform?.scale ?? 1}
@@ -295,6 +321,8 @@ function EditableStage({ editMode, children }: { editMode: boolean; children: Re
       {editMode && diagnostics ? <SelectionFrame diagnostics={diagnostics} locked={Boolean(selectedLocked)} /> : null}
     </group>
   );
+
+  const stageObject = <group ref={turntableGroup}>{transformedObject}</group>;
 
   if (editMode || pointMeasurementMode || selectedLocked) return stageObject;
 
@@ -335,7 +363,7 @@ function PointMeasurementOverlay({ points, unitSystem }: { points: [number, numb
           <meshBasicMaterial color={index === 0 ? '#72f7ff' : '#ffd166'} depthTest={false} />
         </mesh>
       ))}
-      {points.length === 2 ? <Line points={points} color="#ffffff" lineWidth={1.8} transparent opacity={0.9} /> : null}
+      {points.length === 2 ? <NativeLine points={points} color="#ffffff" opacity={0.9} /> : null}
       {distance !== null && midpoint ? <DimensionLabel position={midpoint} color="#ffffff" text={format(distance)} /> : null}
     </group>
   );
@@ -460,26 +488,33 @@ function HolographicRings() {
   );
 }
 
-function ReflectiveFloor({ preset }: { preset: LightingPreset }) {
+function ReflectiveFloor({ preset, backgroundMode, qualityMode }: { preset: LightingPreset; backgroundMode: BackgroundMode; qualityMode: QualityMode }) {
   const accent = lighting[preset].rim;
+  const floorColor = backgrounds[backgroundMode].floor;
+  const reflective = renderProfiles[qualityMode].floor === 'reflective';
+
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.31, 0]} receiveShadow>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.205, 0]} receiveShadow>
       <planeGeometry args={[22, 22]} />
-      <MeshReflectorMaterial
-        blur={[420, 120]}
-        resolution={1024}
-        mixBlur={1.7}
-        mixStrength={0.9}
-        roughness={0.62}
-        depthScale={0.55}
-        minDepthThreshold={0.35}
-        maxDepthThreshold={1.4}
-        color="#07080b"
-        metalness={0.42}
-        mirror={0.34}
-        reflectorOffset={0.02}
-      />
-      <pointLight position={[0, 0.1, 0]} intensity={8} color={accent} distance={6} />
+      {reflective ? (
+        <MeshReflectorMaterial
+          blur={[280, 80]}
+          resolution={512}
+          mixBlur={1.15}
+          mixStrength={0.58}
+          roughness={0.72}
+          depthScale={0.32}
+          minDepthThreshold={0.4}
+          maxDepthThreshold={1.15}
+          color={floorColor}
+          metalness={0.3}
+          mirror={0.18}
+          reflectorOffset={0.065}
+        />
+      ) : (
+        <meshStandardMaterial color={floorColor} roughness={0.88} metalness={0.08} />
+      )}
+      <pointLight position={[0, 0.1, 0]} intensity={reflective ? 7 : 3.5} color={accent} distance={6} />
     </mesh>
   );
 }
@@ -489,6 +524,9 @@ function CameraRig() {
   const transformDragging = useViewerStore((state) => state.transformDragging);
   const selectedAssetId = useViewerStore((state) => state.selectedAssetId);
   const cameraFitRequest = useViewerStore((state) => state.cameraFitRequest);
+  const cameraBookmarkCaptureRequest = useViewerStore((state) => state.cameraBookmarkCaptureRequest);
+  const cameraBookmarkFocusRequest = useViewerStore((state) => state.cameraBookmarkFocusRequest);
+  const saveCameraBookmark = useViewerStore((state) => state.saveCameraBookmark);
   const diagnostics = useViewerStore((state) => (state.selectedAssetId ? state.assetDiagnostics[state.selectedAssetId] : undefined));
   const controls = useRef<React.ElementRef<typeof OrbitControls>>(null);
   const { camera } = useThree();
@@ -512,6 +550,27 @@ function CameraRig() {
     }
   }, [camera, cameraFitRequest, diagnostics, selectedAssetId]);
 
+  useEffect(() => {
+    if (cameraBookmarkCaptureRequest < 1 || !(camera instanceof THREE.PerspectiveCamera)) return;
+
+    saveCameraBookmark(
+      vectorToTuple(camera.position),
+      controls.current ? vectorToTuple(controls.current.target) : [0, -0.05, 0]
+    );
+  }, [camera, cameraBookmarkCaptureRequest, saveCameraBookmark]);
+
+  useEffect(() => {
+    if (!cameraBookmarkFocusRequest || !(camera instanceof THREE.PerspectiveCamera)) return;
+
+    camera.position.set(...cameraBookmarkFocusRequest.position);
+    camera.updateProjectionMatrix();
+
+    if (controls.current) {
+      controls.current.target.set(...cameraBookmarkFocusRequest.target);
+      controls.current.update();
+    }
+  }, [camera, cameraBookmarkFocusRequest]);
+
   useFrame(() => {
     camera.updateProjectionMatrix();
   });
@@ -533,15 +592,19 @@ function CameraRig() {
   );
 }
 
+function vectorToTuple(vector: THREE.Vector3): [number, number, number] {
+  return [Number(vector.x.toFixed(5)), Number(vector.y.toFixed(5)), Number(vector.z.toFixed(5))];
+}
+
 function PostFX({ qualityMode, renderMode, heavyModel }: { qualityMode: QualityMode; renderMode: RenderMode; heavyModel: boolean }) {
-  if (qualityMode === 'eco' || heavyModel) return null;
+  if (!renderProfiles[qualityMode].postFx || heavyModel) return null;
 
   return (
-    <EffectComposer multisampling={qualityMode === 'ultra' ? 8 : 4} enableNormalPass>
-      <SSAO samples={qualityMode === 'ultra' ? 24 : 12} radius={0.22} intensity={18} luminanceInfluence={0.55} />
-      <Bloom intensity={renderMode === 'neon' ? 1.2 : 0.42} luminanceThreshold={0.18} luminanceSmoothing={0.62} mipmapBlur />
-      <DepthOfField focusDistance={0.02} focalLength={0.034} bokehScale={qualityMode === 'balanced' ? 0.35 : 1.55} />
-      <Noise opacity={0.025} />
+    <EffectComposer multisampling={4} enableNormalPass>
+      <SSAO samples={12} radius={0.22} intensity={14} luminanceInfluence={0.58} />
+      <Bloom intensity={renderMode === 'neon' ? 0.95 : 0.34} luminanceThreshold={0.2} luminanceSmoothing={0.66} mipmapBlur />
+      <DepthOfField focusDistance={0.02} focalLength={0.032} bokehScale={1.05} />
+      <Noise opacity={0.018} />
       <Vignette eskil={false} offset={0.15} darkness={0.72} />
     </EffectComposer>
   );

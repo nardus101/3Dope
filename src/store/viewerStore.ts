@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import * as THREE from 'three';
-import type { AssetDiagnostics, CameraBookmark, ClippingAxis, ImportNotice, LightingPreset, MaterialControls, MeasurementPoint, MeasurementReadout, MeshInsight, ObjectTransform, QualityMode, RenderMode, TransformMode, UnitSystem, ViewerAsset } from '../types/viewer';
+import type { AssetDiagnostics, BackgroundMode, CameraBookmark, ClippingAxis, ImportNotice, LightingPreset, MaterialControls, MeasurementPoint, MeasurementReadout, MeshInsight, ObjectTransform, QualityMode, RenderMode, TransformMode, UnitSystem, ViewerAsset } from '../types/viewer';
+
+type TransformAxis = 'x' | 'y' | 'z';
 
 interface EditSnapshot {
   objectTransforms: Record<string, ObjectTransform>;
@@ -23,6 +25,7 @@ interface ViewerState {
   renderMode: RenderMode;
   qualityMode: QualityMode;
   lightingPreset: LightingPreset;
+  backgroundMode: BackgroundMode;
   beginnerMode: boolean;
   precisionMode: boolean;
   presentationMode: boolean;
@@ -47,9 +50,12 @@ interface ViewerState {
   showDropTarget: boolean;
   meshInsights: MeshInsight[];
   cameraBookmarks: CameraBookmark[];
+  cameraBookmarkCaptureRequest: number;
+  cameraBookmarkFocusRequest: CameraBookmark | null;
   setRenderMode: (mode: RenderMode) => void;
   setQualityMode: (mode: QualityMode) => void;
   setLightingPreset: (preset: LightingPreset) => void;
+  setBackgroundMode: (mode: BackgroundMode) => void;
   toggleBeginnerMode: () => void;
   togglePrecisionMode: () => void;
   togglePresentationMode: () => void;
@@ -70,8 +76,10 @@ interface ViewerState {
   updateSelectedTransform: (updater: (transform: ObjectTransform) => ObjectTransform) => void;
   commitSelectedTransform: (transform: ObjectTransform) => void;
   setTransformDragging: (dragging: boolean) => void;
+  autoCenterSelected: () => void;
   dropSelectedToFloor: () => void;
   reorientSelectedUpright: () => void;
+  rotateSelected: (axis: TransformAxis, radians: number) => void;
   resetSelectedTransform: () => void;
   setSelectedMaterialControl: <K extends keyof MaterialControls>(key: K, value: MaterialControls[K]) => void;
   undo: () => void;
@@ -91,6 +99,8 @@ interface ViewerState {
   setImportNotice: (notice: ImportNotice | null) => void;
   requestCameraFit: () => void;
   addBookmark: () => void;
+  saveCameraBookmark: (position: [number, number, number], target: [number, number, number]) => void;
+  focusCameraBookmark: (bookmarkId: string) => void;
 }
 
 const defaultInsights: MeshInsight[] = [
@@ -114,6 +124,8 @@ const defaultMaterial: MaterialControls = {
 };
 
 const floorY = -1.2;
+const defaultCameraPosition: [number, number, number] = [4.4, 2.8, 5.4];
+const defaultCameraTarget: [number, number, number] = [0, -0.05, 0];
 
 function cloneTransform(transform: ObjectTransform): ObjectTransform {
   return {
@@ -176,6 +188,78 @@ function floorTransform(object: THREE.Object3D, transform: ObjectTransform): Obj
   };
 }
 
+function centerTransform(object: THREE.Object3D, transform: ObjectTransform): ObjectTransform {
+  const floored = floorTransform(object, transform);
+  const box = getObjectBounds(object, floored);
+  if (box.isEmpty()) return floored;
+
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+
+  return {
+    ...cloneTransform(floored),
+    position: [
+      Number((floored.position[0] - center.x).toFixed(5)),
+      floored.position[1],
+      Number((floored.position[2] - center.z).toFixed(5))
+    ]
+  };
+}
+
+function transformBoundsScore(object: THREE.Object3D, transform: ObjectTransform) {
+  const box = getObjectBounds(object, transform);
+  if (box.isEmpty()) return { height: 0, footprint: 0 };
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  return {
+    height: size.y,
+    footprint: size.x * size.z
+  };
+}
+
+function normalizeAngle(angle: number) {
+  const wrapped = Math.atan2(Math.sin(angle), Math.cos(angle));
+  return Number(wrapped.toFixed(5));
+}
+
+function roundedRotation(rotation: [number, number, number]): [number, number, number] {
+  return rotation.map(normalizeAngle) as [number, number, number];
+}
+
+function bestUprightTransform(object: THREE.Object3D, current: ObjectTransform): ObjectTransform {
+  const quarter = Math.PI / 2;
+  const candidates: ObjectTransform[] = [
+    current,
+    { ...cloneTransform(current), rotation: roundedRotation([current.rotation[0] - quarter, current.rotation[1], current.rotation[2]]) },
+    { ...cloneTransform(current), rotation: roundedRotation([current.rotation[0] + quarter, current.rotation[1], current.rotation[2]]) },
+    { ...cloneTransform(current), rotation: roundedRotation([current.rotation[0], current.rotation[1], current.rotation[2] - quarter]) },
+    { ...cloneTransform(current), rotation: roundedRotation([current.rotation[0], current.rotation[1], current.rotation[2] + quarter]) },
+    { ...cloneTransform(current), rotation: roundedRotation([current.rotation[0] + Math.PI, current.rotation[1], current.rotation[2]]) },
+    { ...cloneTransform(current), rotation: roundedRotation([current.rotation[0], current.rotation[1], current.rotation[2] + Math.PI]) }
+  ];
+
+  const scored = candidates.map((candidate) => {
+    const floored = floorTransform(object, candidate);
+    return {
+      transform: floored,
+      ...transformBoundsScore(object, floored)
+    };
+  });
+
+  return scored.reduce((winner, candidate) => {
+    if (candidate.height > winner.height * 1.04) return candidate;
+    if (Math.abs(candidate.height - winner.height) <= Math.max(0.02, winner.height * 0.04) && candidate.footprint > winner.footprint) return candidate;
+    return winner;
+  }, scored[0]).transform;
+}
+
+function rotateTransform(object: THREE.Object3D | undefined, current: ObjectTransform, axis: TransformAxis, radians: number) {
+  const rotated = cloneTransform(current);
+  const axisIndex = axis === 'x' ? 0 : axis === 'y' ? 1 : 2;
+  rotated.rotation[axisIndex] = normalizeAngle(rotated.rotation[axisIndex] + radians);
+  return object ? floorTransform(object, rotated) : rotated;
+}
+
 function omitKey<T>(record: Record<string, T>, key: string) {
   return Object.fromEntries(Object.entries(record).filter(([entryKey]) => entryKey !== key));
 }
@@ -209,8 +293,9 @@ export const useViewerStore = create<ViewerState>((set, get) => ({
   cameraFitRequest: 0,
   importNotice: null,
   renderMode: 'showcase',
-  qualityMode: 'cinematic',
+  qualityMode: 'balanced',
   lightingPreset: 'obsidian',
+  backgroundMode: 'obsidian',
   beginnerMode: true,
   precisionMode: false,
   presentationMode: false,
@@ -234,10 +319,13 @@ export const useViewerStore = create<ViewerState>((set, get) => ({
   hierarchyOpen: true,
   showDropTarget: false,
   meshInsights: defaultInsights,
-  cameraBookmarks: [{ id: 'hero', name: 'Hero angle', createdAt: Date.now() }],
+  cameraBookmarks: [{ id: 'hero', name: 'Hero angle', createdAt: Date.now(), position: defaultCameraPosition, target: defaultCameraTarget }],
+  cameraBookmarkCaptureRequest: 0,
+  cameraBookmarkFocusRequest: null,
   setRenderMode: (renderMode) => set({ renderMode }),
   setQualityMode: (qualityMode) => set({ qualityMode }),
   setLightingPreset: (lightingPreset) => set({ lightingPreset }),
+  setBackgroundMode: (backgroundMode) => set({ backgroundMode }),
   toggleBeginnerMode: () => set((state) => ({ beginnerMode: !state.beginnerMode })),
   togglePrecisionMode: () => set((state) => ({ precisionMode: !state.precisionMode })),
   togglePresentationMode: () => set((state) => ({ presentationMode: !state.presentationMode })),
@@ -335,6 +423,24 @@ export const useViewerStore = create<ViewerState>((set, get) => ({
       };
     }),
   setTransformDragging: (transformDragging) => set({ transformDragging }),
+  autoCenterSelected: () =>
+    set((state) => {
+      if (!state.selectedAssetId || state.assetLocks[state.selectedAssetId]) return state;
+      const object = state.sceneObjects[state.selectedAssetId];
+      const current = state.objectTransforms[state.selectedAssetId] ?? defaultTransform;
+      const next = object
+        ? centerTransform(object, current)
+        : { ...cloneTransform(current), position: [0, current.position[1], 0] as [number, number, number] };
+      if (transformsEqual(current, next)) return state;
+
+      return {
+        ...withUndo(state),
+        objectTransforms: {
+          ...state.objectTransforms,
+          [state.selectedAssetId]: next
+        }
+      };
+    }),
   dropSelectedToFloor: () =>
     set((state) => {
       if (!state.selectedAssetId || state.assetLocks[state.selectedAssetId]) return state;
@@ -356,15 +462,29 @@ export const useViewerStore = create<ViewerState>((set, get) => ({
     set((state) => {
       if (!state.selectedAssetId || state.assetLocks[state.selectedAssetId]) return state;
       const object = state.sceneObjects[state.selectedAssetId];
-      if (!object) return state;
       const current = state.objectTransforms[state.selectedAssetId] ?? defaultTransform;
-      const rotated = cloneTransform(current);
-      rotated.rotation = [
-        Number((rotated.rotation[0] - Math.PI / 2).toFixed(5)),
-        rotated.rotation[1],
-        rotated.rotation[2]
-      ];
-      const next = floorTransform(object, rotated);
+      const fallback = {
+        ...cloneTransform(current),
+        rotation: roundedRotation([current.rotation[0] - Math.PI / 2, current.rotation[1], current.rotation[2]])
+      };
+      const next = object ? bestUprightTransform(object, current) : fallback;
+      if (transformsEqual(current, next)) return state;
+
+      return {
+        ...withUndo(state),
+        objectTransforms: {
+          ...state.objectTransforms,
+          [state.selectedAssetId]: next
+        }
+      };
+    }),
+  rotateSelected: (axis, radians) =>
+    set((state) => {
+      if (!state.selectedAssetId || state.assetLocks[state.selectedAssetId]) return state;
+      const object = state.sceneObjects[state.selectedAssetId];
+      const current = state.objectTransforms[state.selectedAssetId] ?? defaultTransform;
+      const next = rotateTransform(object, current, axis, radians);
+      if (transformsEqual(current, next)) return state;
 
       return {
         ...withUndo(state),
@@ -510,13 +630,14 @@ export const useViewerStore = create<ViewerState>((set, get) => ({
     return JSON.stringify(
       {
         app: '3Dope',
-        version: '0.7.3-v1-prep-orientation-edit-recovery',
+        version: '0.7.11-brand-logo-polish',
         exportedAt: new Date().toISOString(),
         selectedAssetId: state.selectedAssetId,
         render: {
           renderMode: state.renderMode,
           qualityMode: state.qualityMode,
           lightingPreset: state.lightingPreset,
+          backgroundMode: state.backgroundMode,
           unitSystem: state.unitSystem,
           measurementsVisible: state.measurementsVisible,
           pointMeasurementMode: state.pointMeasurementMode,
@@ -579,9 +700,24 @@ export const useViewerStore = create<ViewerState>((set, get) => ({
   requestCameraFit: () => set((state) => ({ cameraFitRequest: state.cameraFitRequest + 1 })),
   addBookmark: () =>
     set((state) => ({
+      cameraBookmarkCaptureRequest: state.cameraBookmarkCaptureRequest + 1
+    })),
+  saveCameraBookmark: (position, target) =>
+    set((state) => ({
       cameraBookmarks: [
         ...state.cameraBookmarks,
-        { id: crypto.randomUUID(), name: `View ${state.cameraBookmarks.length + 1}`, createdAt: Date.now() }
+        {
+          id: crypto.randomUUID(),
+          name: `View ${state.cameraBookmarks.length + 1}`,
+          createdAt: Date.now(),
+          position,
+          target
+        }
       ]
-    }))
+    })),
+  focusCameraBookmark: (bookmarkId) =>
+    set((state) => {
+      const bookmark = state.cameraBookmarks.find((entry) => entry.id === bookmarkId);
+      return bookmark ? { cameraBookmarkFocusRequest: bookmark } : state;
+    })
 }));

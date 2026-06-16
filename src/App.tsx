@@ -6,7 +6,7 @@ import { useViewerStore } from './store/viewerStore';
 import { detectRuntimeCapabilities } from './engine/capabilities';
 import { analyzeAsset } from './engine/importPipeline';
 import { loadModelFile } from './engine/modelLoader';
-import type { ClippingAxis, LightingPreset, QualityMode, RenderMode, TransformMode, UnitSystem } from './types/viewer';
+import type { BackgroundMode, ClippingAxis, LightingPreset, QualityMode, RenderMode, TransformMode, UnitSystem } from './types/viewer';
 
 const renderModes: Array<{ id: RenderMode; label: string }> = [
   { id: 'showcase', label: 'Showcase' },
@@ -26,11 +26,19 @@ const lightingPresets: Array<{ id: LightingPreset; label: string }> = [
   { id: 'hologram', label: 'Hologram' }
 ];
 
-const qualityModes: Array<{ id: QualityMode; label: string }> = [
-  { id: 'eco', label: 'Eco' },
-  { id: 'balanced', label: 'Balanced' },
-  { id: 'cinematic', label: 'Cinema' },
-  { id: 'ultra', label: 'Ultra' }
+const backgroundModes: Array<{ id: BackgroundMode; label: string; swatch: string }> = [
+  { id: 'obsidian', label: 'Obsidian', swatch: '#030306' },
+  { id: 'graphite', label: 'Graphite', swatch: '#0a0b0c' },
+  { id: 'arctic', label: 'Arctic', swatch: '#eef5f8' },
+  { id: 'midnight', label: 'Midnight', swatch: '#020712' },
+  { id: 'ember', label: 'Ember', swatch: '#120806' },
+  { id: 'hologram', label: 'Hologram', swatch: '#020611' }
+];
+
+const qualityModes: Array<{ id: QualityMode; label: string; detail: string }> = [
+  { id: 'performance', label: 'Performance', detail: 'Stable matte floor, no post-FX' },
+  { id: 'balanced', label: 'Balanced', detail: 'Static shadows, reduced GPU load' },
+  { id: 'studio', label: 'Studio', detail: 'Reflection and cinematic post-FX' }
 ];
 
 const transformModes: Array<{ id: TransformMode; label: string; icon: ReactNode }> = [
@@ -60,6 +68,9 @@ const unitFactors: Record<UnitSystem, number> = {
   m: 1,
   in: 39.3701
 };
+
+const quarterTurn = Math.PI / 2;
+const halfTurn = Math.PI;
 
 interface RenderBoundaryState {
   hasError: boolean;
@@ -96,6 +107,7 @@ class RenderErrorBoundary extends Component<{ children: ReactNode }, RenderBound
 function App() {
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragDepthRef = useRef(0);
   const capabilities = useMemo(() => detectRuntimeCapabilities(), []);
   const store = useViewerStore();
   const selectedAsset = store.assets.find((asset) => asset.id === store.selectedAssetId) ?? store.assets[0];
@@ -177,6 +189,24 @@ function App() {
     }
   }, [store]);
 
+  const importFiles = useCallback(async (files: FileList | File[]) => {
+    const queuedFiles = Array.from(files).filter((file) => file.size > 0);
+
+    if (queuedFiles.length === 0) {
+      store.setImportNotice({
+        id: crypto.randomUUID(),
+        tone: 'warn',
+        title: 'No model file found',
+        detail: 'Drop one or more STL, GLB, GLTF, OBJ, PLY, or FBX files.'
+      });
+      return;
+    }
+
+    for (const file of queuedFiles) {
+      await importFile(file);
+    }
+  }, [importFile, store]);
+
   const exportProject = () => {
     const blob = new Blob([store.exportProject()], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -194,28 +224,43 @@ function App() {
   };
 
   useEffect(() => {
-    const onDragOver = (event: DragEvent) => {
+    const showDropTarget = (event: DragEvent) => {
       event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
       store.setDropTarget(true);
     };
-    const onDragLeave = () => store.setDropTarget(false);
+    const onDragEnter = (event: DragEvent) => {
+      showDropTarget(event);
+      dragDepthRef.current += 1;
+    };
+    const onDragOver = (event: DragEvent) => {
+      showDropTarget(event);
+    };
+    const onDragLeave = (event: DragEvent) => {
+      event.preventDefault();
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+      if (dragDepthRef.current === 0) store.setDropTarget(false);
+    };
     const onDrop = async (event: DragEvent) => {
       event.preventDefault();
+      dragDepthRef.current = 0;
       store.setDropTarget(false);
-      const file = event.dataTransfer?.files[0];
-      if (!file) return;
-      await importFile(file);
+      const files = event.dataTransfer?.files;
+      if (!files) return;
+      await importFiles(files);
     };
 
+    window.addEventListener('dragenter', onDragEnter);
     window.addEventListener('dragover', onDragOver);
     window.addEventListener('dragleave', onDragLeave);
     window.addEventListener('drop', onDrop);
     return () => {
+      window.removeEventListener('dragenter', onDragEnter);
       window.removeEventListener('dragover', onDragOver);
       window.removeEventListener('dragleave', onDragLeave);
       window.removeEventListener('drop', onDrop);
     };
-  }, [importFile, store]);
+  }, [importFiles, store]);
 
   return (
     <main className={store.presentationMode ? 'app presentation' : 'app'}>
@@ -243,7 +288,9 @@ function App() {
 
       <header className="topbar glass">
         <div className="brand">
-          <div className="brand-mark"><Box size={18} /></div>
+          <div className="brand-mark">
+            <img src="/brand/3dope-logo-mark.png" alt="3Dope" />
+          </div>
           <div>
             <strong>3Dope</strong>
             <span>{capabilities.renderer} / {capabilities.gpuTier}</span>
@@ -261,6 +308,12 @@ function App() {
           <IconButton label="Presentation mode" active={store.presentationMode} onClick={store.togglePresentationMode}><Maximize2 size={17} /></IconButton>
         </div>
       </header>
+
+      {store.presentationMode && (
+        <button className="presentation-exit glass" onClick={store.togglePresentationMode}>
+          <Maximize2 size={16} /> Exit Presentation
+        </button>
+      )}
 
       <AnimatePresence>
         {store.hierarchyOpen && !store.presentationMode && (
@@ -288,10 +341,11 @@ function App() {
                 ref={fileInputRef}
                 className="file-input"
                 type="file"
+                multiple
                 accept=".stl,.glb,.gltf,.obj,.ply,.fbx,.usdz,.step,.stp,.blend"
                 onChange={(event) => {
-                  const file = event.currentTarget.files?.[0];
-                  if (file) void importFile(file);
+                  const files = event.currentTarget.files;
+                  if (files) void importFiles(files);
                   event.currentTarget.value = '';
                 }}
               />
@@ -336,9 +390,43 @@ function App() {
                   </div>
                 </div>
               )}
-              <div className="orientation-actions">
-                <button onClick={store.dropSelectedToFloor}><Move3D size={15} /> Drop To Floor</button>
-                <button onClick={store.reorientSelectedUpright}><Rotate3D size={15} /> Stand Upright</button>
+              <div className="orientation-panel">
+                <div className="orientation-actions">
+                  <button onClick={store.autoCenterSelected}><Crosshair size={15} /> Auto Center</button>
+                  <button onClick={store.dropSelectedToFloor}><Move3D size={15} /> Drop To Floor</button>
+                  <button onClick={store.reorientSelectedUpright}><Rotate3D size={15} /> Stand Upright</button>
+                </div>
+                <div className="quick-orient-grid" aria-label="Quick object orientation">
+                  <button onClick={() => store.rotateSelected('x', -quarterTurn)}>
+                    <span>Roll Left</span>
+                    <strong>X -90</strong>
+                  </button>
+                  <button onClick={() => store.rotateSelected('x', quarterTurn)}>
+                    <span>Roll Right</span>
+                    <strong>X +90</strong>
+                  </button>
+                  <button onClick={() => store.rotateSelected('y', -quarterTurn)}>
+                    <span>Turn Left</span>
+                    <strong>Y -90</strong>
+                  </button>
+                  <button onClick={() => store.rotateSelected('y', quarterTurn)}>
+                    <span>Turn Right</span>
+                    <strong>Y +90</strong>
+                  </button>
+                  <button onClick={() => store.rotateSelected('z', -quarterTurn)}>
+                    <span>Tilt Back</span>
+                    <strong>Z -90</strong>
+                  </button>
+                  <button onClick={() => store.rotateSelected('z', quarterTurn)}>
+                    <span>Tilt Forward</span>
+                    <strong>Z +90</strong>
+                  </button>
+                </div>
+                <div className="flip-strip" aria-label="Flip object">
+                  <button onClick={() => store.rotateSelected('x', halfTurn)}>Flip X</button>
+                  <button onClick={() => store.rotateSelected('y', halfTurn)}>Flip Y</button>
+                  <button onClick={() => store.rotateSelected('z', halfTurn)}>Flip Z</button>
+                </div>
               </div>
               {store.transformMode === 'translate' && (
                 <div className="nudge-grid">
@@ -352,12 +440,12 @@ function App() {
               )}
               {store.transformMode === 'rotate' && (
                 <div className="nudge-grid">
-                  <button onClick={() => store.updateSelectedTransform((transform) => ({ ...transform, rotation: [transform.rotation[0] - rotationStep, transform.rotation[1], transform.rotation[2]] }))}>RX-</button>
-                  <button onClick={() => store.updateSelectedTransform((transform) => ({ ...transform, rotation: [transform.rotation[0] + rotationStep, transform.rotation[1], transform.rotation[2]] }))}>RX+</button>
-                  <button onClick={() => store.updateSelectedTransform((transform) => ({ ...transform, rotation: [transform.rotation[0], transform.rotation[1] - rotationStep, transform.rotation[2]] }))}>RY-</button>
-                  <button onClick={() => store.updateSelectedTransform((transform) => ({ ...transform, rotation: [transform.rotation[0], transform.rotation[1] + rotationStep, transform.rotation[2]] }))}>RY+</button>
-                  <button onClick={() => store.updateSelectedTransform((transform) => ({ ...transform, rotation: [transform.rotation[0], transform.rotation[1], transform.rotation[2] - rotationStep] }))}>RZ-</button>
-                  <button onClick={() => store.updateSelectedTransform((transform) => ({ ...transform, rotation: [transform.rotation[0], transform.rotation[1], transform.rotation[2] + rotationStep] }))}>RZ+</button>
+                  <button onClick={() => store.rotateSelected('x', -rotationStep)}>Pitch -</button>
+                  <button onClick={() => store.rotateSelected('x', rotationStep)}>Pitch +</button>
+                  <button onClick={() => store.rotateSelected('y', -rotationStep)}>Yaw -</button>
+                  <button onClick={() => store.rotateSelected('y', rotationStep)}>Yaw +</button>
+                  <button onClick={() => store.rotateSelected('z', -rotationStep)}>Roll -</button>
+                  <button onClick={() => store.rotateSelected('z', rotationStep)}>Roll +</button>
                 </div>
               )}
               {store.transformMode === 'scale' && (
@@ -373,7 +461,11 @@ function App() {
             <section>
               <h2>Viewpoints</h2>
               <div className="bookmark-grid">
-                {store.cameraBookmarks.map((bookmark) => <button key={bookmark.id}>{bookmark.name}</button>)}
+                {store.cameraBookmarks.map((bookmark) => (
+                  <button key={bookmark.id} onClick={() => store.focusCameraBookmark(bookmark.id)}>
+                    {bookmark.name}
+                  </button>
+                ))}
               </div>
             </section>
 
@@ -452,11 +544,24 @@ function App() {
             </section>
 
             <section>
+              <h2>Background</h2>
+              <div className="background-grid">
+                {backgroundModes.map((mode) => (
+                  <button key={mode.id} className={store.backgroundMode === mode.id ? 'active' : ''} onClick={() => store.setBackgroundMode(mode.id)}>
+                    <i style={{ background: mode.swatch }} />
+                    <span>{mode.label}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section>
               <h2>Render Budget</h2>
               <div className="quality-grid">
                 {qualityModes.map((mode) => (
                   <button key={mode.id} className={store.qualityMode === mode.id ? 'active' : ''} onClick={() => store.setQualityMode(mode.id)}>
-                    {mode.label}
+                    <span>{mode.label}</span>
+                    <small>{mode.detail}</small>
                   </button>
                 ))}
               </div>
@@ -550,7 +655,19 @@ function App() {
         <nav className="dock glass">
           <IconButton label="Scene panel" active={store.hierarchyOpen} onClick={store.toggleHierarchy}><Layers3 size={20} /></IconButton>
           <IconButton label="Turntable" active={store.turntable} onClick={store.toggleTurntable}><Orbit size={20} /></IconButton>
-          <IconButton label="Smart suggest" active><WandSparkles size={20} /></IconButton>
+          <IconButton
+            label="Smart suggest"
+            onClick={() => store.setImportNotice({
+              id: crypto.randomUUID(),
+              tone: 'info',
+              title: 'Smart suggestions',
+              detail: selectedDiagnostics
+                ? `${selectedAsset.name}: use Capture dimensions, Technical mode, and Section Slice for inspection.`
+                : 'Import a model first, then 3Dope can suggest useful inspection tools.'
+            })}
+          >
+            <WandSparkles size={20} />
+          </IconButton>
           <IconButton label="Inspector" active={store.inspectorOpen} onClick={store.toggleInspector}><Sparkles size={20} /></IconButton>
         </nav>
       )}
