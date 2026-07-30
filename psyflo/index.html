@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#030305">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PsyFlo">
+<title>PsyFlo</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px)}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020205;color:white;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",sans-serif;touch-action:none}
+body{position:fixed;inset:0}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.glass{background:rgba(12,12,18,.44);border:1px solid rgba(255,255,255,.13);backdrop-filter:blur(22px) saturate(145%);-webkit-backdrop-filter:blur(22px) saturate(145%);box-shadow:0 12px 44px rgba(0,0,0,.28)}
+.top{position:absolute;left:14px;right:14px;top:calc(var(--st) + 10px);height:52px;border-radius:18px;display:flex;align-items:center;justify-content:space-between;padding:7px;z-index:5;transition:.35s}
+.brand{font-size:12px;font-weight:800;letter-spacing:.23em}
+button{appearance:none;border:none;color:#fff;font:inherit;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:10px 13px;font-size:13px;font-weight:700}
+button:active{transform:scale(.96)}
+.pill{min-width:84px}
+.accent{background:linear-gradient(135deg,rgba(117,76,255,.68),rgba(255,51,173,.48))}
+.panel{position:absolute;left:14px;right:14px;bottom:calc(var(--sb) + 14px);z-index:5;border-radius:24px;padding:12px;transition:.35s cubic-bezier(.2,.8,.2,1)}
+.panel.off,.top.off{opacity:0;transform:translateY(24px);pointer-events:none}
+.row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}
+.row button{padding:11px 4px;font-size:12px}
+label{display:grid;grid-template-columns:68px 1fr;align-items:center;gap:10px;padding:7px 5px;font-size:12px;opacity:.9}
+input{width:100%;accent-color:white}
+.float{position:absolute;right:16px;bottom:calc(var(--sb) + 18px);z-index:4;width:48px;height:48px;border-radius:50%;font-size:20px;display:none}
+.float.show{display:block}
+.intro{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;background:radial-gradient(circle at 50% 44%,rgba(111,55,255,.24),rgba(0,0,0,.88) 42%,#000 80%);transition:.7s}
+.intro.out{opacity:0;pointer-events:none}
+.logo{width:84px;height:84px;border-radius:50%;border:2px solid rgba(255,255,255,.86);box-shadow:0 0 38px rgba(142,87,255,.8),inset 0 0 28px rgba(255,65,199,.5);position:relative;animation:spin 7s linear infinite}
+.logo:after{content:"";position:absolute;inset:14px;border-radius:50%;border:1px solid rgba(94,234,255,.85);transform:translateX(8px)}
+@keyframes spin{to{transform:rotate(360deg)}}
+h1{font-size:42px;letter-spacing:-.04em;margin:24px 0 4px}
+.intro p{opacity:.7;margin:0 0 26px}
+.enter{padding:14px 20px;background:#fff;color:#000;font-weight:800}
+.toast{position:absolute;left:50%;top:calc(var(--st) + 78px);transform:translateX(-50%) translateY(-10px);z-index:12;padding:9px 13px;border-radius:999px;background:rgba(0,0,0,.58);border:1px solid rgba(255,255,255,.14);font-size:12px;opacity:0;transition:.25s;white-space:nowrap;backdrop-filter:blur(16px)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(min-width:760px){
+.top,.panel{max-width:560px;left:50%;right:auto;width:560px;transform:translateX(-50%)}
+.top.off{transform:translateX(-50%) translateY(-20px)}
+.panel.off{transform:translateX(-50%) translateY(24px)}
+}
+</style>
+</head>
+<body>
+<canvas id="fx"></canvas>
+
+<div class="intro" id="intro">
+  <div class="logo"></div>
+  <h1>PsyFlo</h1>
+  <p>Touch the light.</p>
+  <button class="enter" id="enter">Enter the Flow</button>
+</div>
+
+<header class="top glass">
+  <button class="pill" id="mode">Liquid</button>
+  <div class="brand">PSYFLO</div>
+  <button class="pill accent" id="trip">TRIP</button>
+</header>
+
+<section class="panel glass" id="panel">
+  <div class="row">
+    <button id="palette">Palette</button>
+    <button id="mirror">Mirror</button>
+    <button id="sound">Sound</button>
+    <button id="tilt">Tilt</button>
+  </div>
+  <div class="row">
+    <button id="clear">Clear</button>
+    <button id="save">Save</button>
+    <button id="record">Record</button>
+    <button id="hide">Hide</button>
+  </div>
+  <label><span>Intensity</span><input id="intensity" type="range" min=".4" max="2.2" value="1.1" step=".05"></label>
+  <label><span>Trail</span><input id="trail" type="range" min=".80" max=".985" value=".94" step=".005"></label>
+</section>
+
+<button class="float glass" id="show">✦</button>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+const c=document.getElementById('fx'),x=c.getContext('2d',{alpha:false,desynchronized:true});
+const $=id=>document.getElementById(id);
+const DPR=Math.min(devicePixelRatio||1,2);
+let W=0,H=0,mode=0,pal=0,mirror=false,intensity=1.1,fade=.94,audio=0,mx=0,my=0;
+let pts=[],touches=new Map(),hue=0,rec=null,chunks=[],visible=true;
+const modes=['Liquid','Neon','Particles','Fractal'];
+const palettes=[
+['#8d5cff','#ef4ccf','#4de7ff','#ffffff'],
+['#00e5ff','#0077ff','#8f5cff','#e8f7ff'],
+['#ff335f','#ff8a00','#ffe55c','#ffffff'],
+['#00ff9d','#0abfbc','#6a5cff','#f5f7ff'],
+['#ff00c8','#7a00ff','#00d4ff','#ffffff'],
+['#f2f2f2','#8e8e93','#3a3a3c','#ffffff']
+];
+function resize(){W=innerWidth;H=innerHeight;c.width=W*DPR;c.height=H*DPR;c.style.width=W+'px';c.style.height=H+'px';x.setTransform(DPR,0,0,DPR,0,0);x.fillStyle='#020205';x.fillRect(0,0,W,H)}
+addEventListener('resize',resize,{passive:true});resize();
+const rand=(a,b)=>a+Math.random()*(b-a);
+function rgba(i,a=1){const n=parseInt(palettes[pal][i%4].slice(1),16);return `rgba(${n>>16},${(n>>8)&255},${n&255},${a})`}
+function burst(px,py,dx=0,dy=0,p=.6){
+ let n=Math.floor((mode===2?18:8)*intensity*(1+audio*1.6));
+ for(let i=0;i<n;i++){const a=Math.atan2(dy,dx)+rand(-1.7,1.7),s=rand(.4,3.3)*(1+Math.hypot(dx,dy)*.02)*intensity;
+ pts.push({x:px,y:py,px,py,vx:Math.cos(a)*s+mx*.04,vy:Math.sin(a)*s+my*.04,life:rand(30,120),max:120,size:rand(1,6)*(p+.3)*intensity,c:Math.floor(rand(0,4)),seed:Math.random()*1000})}
+ if(pts.length>1800)pts.splice(0,pts.length-1800);
+}
+function trail(x1,y1,x2,y2,p){
+ x.save();x.globalCompositeOperation='lighter';
+ const g=x.createLinearGradient(x1,y1,x2,y2);g.addColorStop(0,rgba(hue|0,.15));g.addColorStop(1,rgba((hue|0)+1,.85));
+ x.strokeStyle=g;x.lineWidth=(5+22*p)*intensity;x.lineCap='round';x.shadowBlur=20*intensity;x.shadowColor=rgba(1,.9);
+ x.beginPath();x.moveTo(x1,y1);x.lineTo(x2,y2);x.stroke();
+ if(mirror){x.beginPath();x.moveTo(W-x1,y1);x.lineTo(W-x2,y2);x.stroke()}
+ x.restore();
+}
+c.addEventListener('pointerdown',e=>{c.setPointerCapture(e.pointerId);touches.set(e.pointerId,{x:e.clientX,y:e.clientY});burst(e.clientX,e.clientY,0,0,e.pressure||.7);navigator.vibrate?.(8)});
+c.addEventListener('pointermove',e=>{const t=touches.get(e.pointerId);if(!t)return;const dx=e.clientX-t.x,dy=e.clientY-t.y;burst(e.clientX,e.clientY,dx,dy,e.pressure||.5);trail(t.x,t.y,e.clientX,e.clientY,e.pressure||.5);t.x=e.clientX;t.y=e.clientY});
+const up=e=>touches.delete(e.pointerId);c.addEventListener('pointerup',up);c.addEventListener('pointercancel',up);
+
+function tick(){
+ x.save();x.globalCompositeOperation='source-over';x.fillStyle=`rgba(2,2,5,${1-fade})`;x.fillRect(0,0,W,H);x.restore();
+ x.save();x.globalCompositeOperation='lighter';
+ const t=performance.now()*.001;
+ for(let i=pts.length-1;i>=0;i--){
+  const p=pts[i];p.px=p.x;p.py=p.y;
+  if(mode===0){p.vx+=Math.sin(p.y*.012+t+p.seed)*.045;p.vy+=Math.cos(p.x*.011-t+p.seed)*.045;p.vx*=.985;p.vy*=.985}
+  else if(mode===1){p.vx+=Math.sin(t*2+p.seed)*.02;p.vy-=.018*(1+audio);p.vx*=.992;p.vy*=.992}
+  else if(mode===2){const cx=W/2+mx*3,cy=H/2+my*3,dx=cx-p.x,dy=cy-p.y,d=Math.hypot(dx,dy)+1;p.vx+=dx/d*.012;p.vy+=dy/d*.012;p.vx*=.996;p.vy*=.996}
+  else{const a=Math.atan2(p.y-H/2,p.x-W/2)+.03,r=Math.hypot(p.x-W/2,p.y-H/2);p.x=W/2+Math.cos(a)*r;p.y=H/2+Math.sin(a)*r;p.vx*=.99;p.vy*=.99}
+  p.x+=p.vx;p.y+=p.vy;p.life--;
+  if(p.x<-80||p.x>W+80||p.y<-80||p.y>H+80||p.life<=0){pts.splice(i,1);continue}
+  const a=Math.max(0,p.life/p.max);x.strokeStyle=rgba(p.c,a*.8);x.lineWidth=Math.max(.5,p.size*a);x.lineCap='round';x.shadowBlur=mode===1?28:12;x.shadowColor=rgba(p.c,a);
+  x.beginPath();x.moveTo(p.px,p.py);x.lineTo(p.x,p.y);x.stroke();
+  if(mode===3){for(let k=1;k<6;k++){const an=k*Math.PI/3,cx=W/2,cy=H/2,dx=p.x-cx,dy=p.y-cy,rx=cx+dx*Math.cos(an)-dy*Math.sin(an),ry=cy+dx*Math.sin(an)+dy*Math.cos(an);x.beginPath();x.arc(rx,ry,p.size*.55,0,Math.PI*2);x.fillStyle=rgba(p.c,a*.35);x.fill()}}
+  if(mirror){x.beginPath();x.moveTo(W-p.px,p.py);x.lineTo(W-p.x,p.y);x.stroke()}
+ }
+ x.restore();hue+=.008+.04*audio;requestAnimationFrame(tick)
+}
+tick();
+
+function toast(m){$('toast').textContent=m;$('toast').classList.add('show');clearTimeout($('toast').t);$('toast').t=setTimeout(()=>$('toast').classList.remove('show'),1400)}
+function sync(){$('mode').textContent=modes[mode];$('palette').textContent='Palette '+(pal+1);$('mirror').textContent=mirror?'Mirror On':'Mirror'}
+$('enter').onclick=()=>{$('intro').classList.add('out');setTimeout(()=>$('intro').remove(),800)};
+$('mode').onclick=()=>{mode=(mode+1)%4;sync();toast(modes[mode])};
+$('palette').onclick=()=>{pal=(pal+1)%palettes.length;sync();toast('Palette '+(pal+1))};
+$('mirror').onclick=()=>{mirror=!mirror;sync()};
+$('clear').onclick=()=>{pts=[];x.fillStyle='#020205';x.fillRect(0,0,W,H)};
+$('trip').onclick=()=>{mode=Math.floor(Math.random()*4);pal=Math.floor(Math.random()*palettes.length);mirror=Math.random()>.45;intensity=rand(.8,1.8);fade=rand(.90,.975);$('intensity').value=intensity;$('trail').value=fade;sync();for(let i=0;i<12;i++)burst(rand(0,W),rand(0,H),rand(-9,9),rand(-9,9),rand(.3,1));toast('New trip')};
+$('intensity').oninput=e=>intensity=+e.target.value;$('trail').oninput=e=>fade=+e.target.value;
+function controls(v){visible=v;$('panel').classList.toggle('off',!v);document.querySelector('.top').classList.toggle('off',!v);$('show').classList.toggle('show',!v)}
+$('hide').onclick=()=>controls(false);$('show').onclick=()=>controls(true);
+$('save').onclick=()=>{try{const a=document.createElement('a');a.download='PsyFlo-'+Date.now()+'.png';a.href=c.toDataURL('image/png');a.click();toast('Artwork saved')}catch{toast('Take a screenshot to save')}};
+$('record').onclick=()=>{toast('Use iPhone Screen Recording')};
+$('sound').onclick=async()=>{try{const s=await navigator.mediaDevices.getUserMedia({audio:true});const ac=new (AudioContext||webkitAudioContext)(),src=ac.createMediaStreamSource(s),an=ac.createAnalyser();an.fftSize=256;src.connect(an);const d=new Uint8Array(an.frequencyBinCount);(function f(){an.getByteFrequencyData(d);audio=d.reduce((a,b)=>a+b,0)/(d.length*255);requestAnimationFrame(f)})();$('sound').textContent='Sound On';toast('Sound reactive')}catch{toast('Microphone unavailable')}};
+$('tilt').onclick=async()=>{try{if(typeof DeviceMotionEvent!=='undefined'&&typeof DeviceMotionEvent.requestPermission==='function'){if(await DeviceMotionEvent.requestPermission()!=='granted')throw 0}addEventListener('deviceorientation',e=>{mx=e.gamma||0;my=(e.beta||0)-45},{passive:true});$('tilt').textContent='Tilt On';toast('Tilt enabled')}catch{toast('Motion denied')}};
+let ts=0;c.addEventListener('touchstart',e=>{if(e.touches.length===2)ts=performance.now()},{passive:true});c.addEventListener('touchend',()=>{if(ts&&performance.now()-ts<280){controls(!visible);ts=0}},{passive:true});
+sync();
+})();
+</script>
+</body>
+</html>
