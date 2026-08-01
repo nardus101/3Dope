@@ -76,7 +76,7 @@ h1{font-size:42px;letter-spacing:-.05em;margin:22px 0 4px}.intro p{margin:0 0 6p
 <canvas id="gl" aria-label="Interactive PsyFlo visual canvas"></canvas>
 <canvas class="tv-output" id="tvOutput" width="1280" height="720" aria-hidden="true"></canvas>
 <video class="tv-video" id="tvVideo" muted autoplay playsinline webkit-playsinline aria-hidden="true"></video>
-<div class="intro" id="intro"><div class="orb" aria-hidden="true"></div><h1>PsyFlo</h1><p>Touch the light. Move the room.</p><small>LANDSCAPE TV CONTROLLER · SOUND AUTO-START</small><button class="enter" id="enter">Enter the Flow</button><button class="install" id="installIntro">＋ Install on phone</button></div>
+<div class="intro" id="intro"><div class="orb" aria-hidden="true"></div><h1>PsyFlo</h1><p>Touch the light. Move the room.</p><small>LANDSCAPE TV CONTROLLER · SOUND AUTO-START</small><button class="enter" id="enter">Enter the Flow</button><button class="install" id="installIntro">⛶ Remove Safari bars</button></div>
 <header class="ui top glass" id="top"><button id="mode" aria-label="Change visual style">Liquid</button><div class="brand"><strong>PSYFLO</strong><small id="qualityMark">AUTO</small></div><button class="trip" id="trip">TRIP</button></header>
 <section class="ui sheet glass" id="sheet" aria-label="PsyFlo controls">
   <div class="section-title"><span>Party presets</span><span id="presetName">Aurora</span></div>
@@ -116,7 +116,7 @@ h1{font-size:42px;letter-spacing:-.05em;margin:22px 0 4px}.intro p{margin:0 0 6p
 <div class="install-guide" id="installGuide" role="dialog" aria-modal="true" aria-labelledby="installTitle">
   <div class="install-card glass">
     <button class="install-close" id="installClose" aria-label="Close install guide">×</button>
-    <span class="install-mark">PHONE APP</span>
+    <span class="install-mark" id="installMark">PHONE APP</span>
     <h2 id="installTitle">Install PsyFlo</h2>
     <p id="installLead">Add PsyFlo to your Home Screen for a cleaner, full-screen launch.</p>
     <ol id="installSteps"></ol>
@@ -134,20 +134,24 @@ const isStandalone=()=>matchMedia('(display-mode: standalone)').matches||navigat
 const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const isSafari=/Safari/.test(navigator.userAgent)&&!/CriOS|FxiOS|EdgiOS|OPiOS/.test(navigator.userAgent);
 function closeInstallGuide(){$('installGuide').classList.remove('show');}
-function showInstallGuide(){
+function showInstallGuide(reason='install'){
  const steps=isIOS?(isSafari?['Tap the Share button in Safari.','Choose Add to Home Screen.','Turn on Open as Web App, then tap Add.']:['Open this PsyFlo link in Safari.','Tap Safari’s Share button.','Choose Add to Home Screen, then tap Add.']):['Open your browser menu (⋮ or Share).','Choose Install app or Add to Home screen.','Confirm Install or Add.'];
- $('installLead').textContent=isIOS?'iPhone requires this one-time Safari step. PsyFlo then opens like an app.':'Install PsyFlo for a full-screen, app-like launch.';
+ const cleanScreen=reason==='fullscreen';
+ $('installMark').textContent=cleanScreen?'CLEAN TV MODE':'PHONE APP';
+ $('installTitle').textContent=cleanScreen?'Remove Safari bars':'Install PsyFlo';
+ $('installLead').textContent=cleanScreen?'Safari’s address and tab buttons cannot be hidden inside a browser tab. Do this once, then launch PsyFlo from its Home Screen icon for a clean full-screen controller.':isIOS?'iPhone requires this one-time Safari step. PsyFlo then opens like an app.':'Install PsyFlo for a full-screen, app-like launch.';
+ $('installDone').textContent=cleanScreen?'Got it — use the app icon':'Got it';
  $('installSteps').replaceChildren(...steps.map(step=>{const item=document.createElement('li');item.textContent=step;return item;}));
  $('installGuide').classList.add('show');
 }
-async function installPsyFlo(){
+async function installPsyFlo(reason='install'){
  if(isStandalone()){closeInstallGuide();return;}
- if(deferredInstallPrompt){try{deferredInstallPrompt.prompt();const choice=await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;if(choice.outcome!=='accepted')showInstallGuide();return;}catch{deferredInstallPrompt=null;}}
- showInstallGuide();
+ if(deferredInstallPrompt){try{deferredInstallPrompt.prompt();const choice=await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;if(choice.outcome!=='accepted')showInstallGuide(reason);return;}catch{deferredInstallPrompt=null;}}
+ showInstallGuide(reason);
 }
 addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;});
 addEventListener('appinstalled',()=>{deferredInstallPrompt=null;closeInstallGuide();document.querySelectorAll('.install').forEach(button=>button.hidden=true);});
-$('installIntro').onclick=installPsyFlo;$('installTool').onclick=installPsyFlo;$('installClose').onclick=closeInstallGuide;$('installDone').onclick=closeInstallGuide;$('installGuide').onclick=event=>{if(event.target===$('installGuide'))closeInstallGuide();};
+$('installIntro').onclick=()=>installPsyFlo('fullscreen');$('installTool').onclick=()=>installPsyFlo('fullscreen');$('installClose').onclick=closeInstallGuide;$('installDone').onclick=closeInstallGuide;$('installGuide').onclick=event=>{if(event.target===$('installGuide'))closeInstallGuide();};
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeInstallGuide();});
 if(isStandalone())document.querySelectorAll('.install').forEach(button=>button.hidden=true);
 if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
@@ -311,7 +315,7 @@ async function enterPresentation(){
  resize(true);setTimeout(()=>resize(true),220);
 }
 async function exitPresentation(fromNative=false){presenting=false;document.body.classList.remove('presenting');$('present').classList.remove('on');$('present').innerHTML='▣<br>AirPlay';$('airplayTip').classList.remove('show');clearTimeout(tvTipTimer);if(!fromNative)stopVideoFullscreen();else{nativeVideoFullscreen=false;tvCanvasStream?.getTracks().forEach(track=>track.stop());tvCanvasStream=null;tvVideo.srcObject=null;lastTvFrame=0;}await releaseWakeLockIfIdle();try{if(document.fullscreenElement)await document.exitFullscreen();}catch{}try{screen.orientation?.unlock?.();}catch{}resize(true);bumpIdle();}
-$('present').onclick=enterPresentation;$('exitPresent').onclick=()=>exitPresentation(false);$('tvReady').onclick=launchTvFullscreen;tvVideo.addEventListener('webkitbeginfullscreen',()=>{nativeVideoFullscreen=true;$('airplayTip').classList.remove('show');$('tvScreenState').textContent='VIDEO FULLSCREEN ACTIVE';});tvVideo.addEventListener('webkitendfullscreen',()=>{if(presenting)exitPresentation(true);});document.addEventListener('fullscreenchange',()=>{if(presenting&&!document.fullscreenElement&&document.fullscreenEnabled)exitPresentation(false);});
+$('present').onclick=()=>{if(isIOS&&isSafari&&!isStandalone()){closeSheet();showInstallGuide('fullscreen');return;}enterPresentation();};$('exitPresent').onclick=()=>exitPresentation(false);$('tvReady').onclick=launchTvFullscreen;tvVideo.addEventListener('webkitbeginfullscreen',()=>{nativeVideoFullscreen=true;$('airplayTip').classList.remove('show');$('tvScreenState').textContent='VIDEO FULLSCREEN ACTIVE';});tvVideo.addEventListener('webkitendfullscreen',()=>{if(presenting)exitPresentation(true);});document.addEventListener('fullscreenchange',()=>{if(presenting&&!document.fullscreenElement&&document.fullscreenEnabled)exitPresentation(false);});
 
 let uiVisible=true,idleTimer;
 function setUi(visible){uiVisible=visible;['top','dock','sheet'].forEach(id=>$(id).classList.toggle('hidden',!visible));$('reveal').classList.toggle('show',!visible);if(!visible)closeSheet();}
