@@ -1,4 +1,4 @@
-const CACHE='psyflo-shell-v6';
+const CACHE='psyflo-shell-v7';
 const SHELL=['./','./index.html','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png'];
 
 self.addEventListener('install',event=>{
