@@ -4,112 +4,233 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#020204">
+<meta name="color-scheme" content="dark">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PsyFlo">
-<title>PsyFlo — GPU Beta</title>
+<meta name="description" content="PsyFlo is a touch-first live psychedelic visual instrument built for iPhone and AirPlay.">
+<title>PsyFlo — Live Visuals</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-:root{--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px)}
+:root{--st:env(safe-area-inset-top,0px);--sr:env(safe-area-inset-right,0px);--sb:env(safe-area-inset-bottom,0px);--sl:env(safe-area-inset-left,0px);--violet:#875cff;--pink:#ff4db8;--cyan:#5eeaff}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020204;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",sans-serif;touch-action:none}
-body{position:fixed;inset:0;overscroll-behavior:none}
-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-.ui{position:absolute;z-index:5;left:14px;right:14px;transition:opacity .25s ease,transform .25s ease}
-.glass{background:rgba(10,10,15,.42);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(18px) saturate(135%);-webkit-backdrop-filter:blur(18px) saturate(135%);box-shadow:0 12px 36px rgba(0,0,0,.28)}
-.top{top:calc(var(--st) + 10px);height:50px;border-radius:17px;display:flex;align-items:center;justify-content:space-between;padding:6px}
-.brand{font-size:11px;font-weight:850;letter-spacing:.24em;opacity:.88}
-button{appearance:none;border:0;color:#fff;font:inherit;background:rgba(255,255,255,.075);border:1px solid rgba(255,255,255,.09);border-radius:13px;padding:10px 12px;font-size:12px;font-weight:720;min-height:38px}
-button:active{transform:scale(.965)}
-.pill{min-width:88px}.trip{background:linear-gradient(135deg,rgba(120,75,255,.72),rgba(255,57,180,.52))}
-.dock{bottom:calc(var(--sb) + 12px);border-radius:22px;padding:8px;display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
-.dock button{padding:10px 5px;font-size:11px}
-.sheet{bottom:calc(var(--sb) + 70px);border-radius:22px;padding:12px;display:none}
-.sheet.open{display:block}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
-.control{display:grid;grid-template-columns:68px 1fr;align-items:center;gap:10px;font-size:11px;opacity:.86;padding:5px 2px}
-input{width:100%;accent-color:white}
+body{position:fixed;inset:0;overscroll-behavior:none;-webkit-user-select:none;user-select:none}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block;outline:none}
+button,input{font:inherit}
+button{appearance:none;border:1px solid rgba(255,255,255,.1);color:#fff;background:rgba(255,255,255,.075);border-radius:14px;min-height:44px;padding:9px 11px;font-size:11px;font-weight:760;letter-spacing:.01em;touch-action:manipulation}
+button:active{transform:scale(.96);background:rgba(255,255,255,.14)}
+button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.ui{position:absolute;z-index:5;left:calc(var(--sl) + 12px);right:calc(var(--sr) + 12px);transition:opacity .24s ease,transform .24s ease}
+.glass{background:rgba(8,8,13,.52);border:1px solid rgba(255,255,255,.12);-webkit-backdrop-filter:blur(18px) saturate(135%);backdrop-filter:blur(18px) saturate(135%);box-shadow:0 14px 42px rgba(0,0,0,.28)}
+.top{top:calc(var(--st) + 9px);height:54px;border-radius:18px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:5px;gap:7px}
+.top button:first-child{justify-self:start;min-width:96px}.top button:last-child{justify-self:end;min-width:82px}
+.brand{text-align:center;line-height:1}.brand strong{display:block;font-size:10px;font-weight:900;letter-spacing:.22em}.brand small{display:block;margin-top:5px;font-size:7px;letter-spacing:.13em;color:rgba(255,255,255,.48)}
+.brand small:before{content:"";display:inline-block;width:5px;height:5px;margin-right:5px;border-radius:50%;background:#58f7b1;box-shadow:0 0 8px #58f7b1;vertical-align:0}
+.trip{background:linear-gradient(135deg,rgba(119,74,255,.82),rgba(255,58,181,.62));box-shadow:0 0 22px rgba(173,71,255,.2)}
+.dock{bottom:calc(var(--sb) + 10px);border-radius:22px;padding:7px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.dock button{padding:7px 3px;line-height:1.12}.dock .ico{display:block;font-size:16px;margin-bottom:4px;font-weight:500}.dock .txt{display:block;font-size:9px;letter-spacing:.025em;white-space:nowrap}
+.sheet{bottom:calc(var(--sb) + 75px);border-radius:23px;padding:13px;max-height:calc(100dvh - var(--st) - var(--sb) - 150px);overflow:auto;-webkit-overflow-scrolling:touch;display:none;touch-action:pan-y}
+.sheet.open{display:block;animation:rise .2s ease-out}@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+.section-title{display:flex;justify-content:space-between;align-items:center;margin:2px 2px 9px;font-size:9px;font-weight:850;letter-spacing:.17em;color:rgba(255,255,255,.52);text-transform:uppercase}
+.presets{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:14px}
+.preset{position:relative;overflow:hidden;min-height:46px;padding:9px 5px;border-color:rgba(255,255,255,.08)}
+.preset:before{content:"";position:absolute;inset:0;background:var(--swatch);opacity:.24}.preset span{position:relative}.preset.active{border-color:rgba(255,255,255,.48);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
+.tools{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:9px}.tools button{padding:7px 3px;font-size:9px}.tools button.on{background:rgba(94,234,255,.17);border-color:rgba(94,234,255,.4)}
+.control{display:grid;grid-template-columns:68px 1fr 32px;align-items:center;gap:8px;min-height:36px;font-size:10px;color:rgba(255,255,255,.72)}
+.control output{text-align:right;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.48)}
+input[type=range]{width:100%;height:24px;accent-color:#fff;touch-action:pan-x}
+.hint{text-align:center;margin:9px 0 1px;font-size:9px;line-height:1.4;color:rgba(255,255,255,.4)}
 .hidden{opacity:0;transform:translateY(10px);pointer-events:none}
-.reveal{position:absolute;z-index:4;right:16px;bottom:calc(var(--sb) + 16px);width:48px;height:48px;border-radius:50%;display:none;font-size:18px}.reveal.show{display:block}
-.intro{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;background:radial-gradient(circle at 50% 43%,rgba(111,55,255,.2),rgba(0,0,0,.9) 40%,#000 80%);transition:opacity .55s ease}
-.intro.out{opacity:0;pointer-events:none}
-.logo{width:82px;height:82px;border-radius:50%;border:2px solid rgba(255,255,255,.88);box-shadow:0 0 34px rgba(142,87,255,.72),inset 0 0 24px rgba(255,65,199,.45);position:relative;animation:spin 7s linear infinite}
-.logo:after{content:"";position:absolute;inset:15px;border-radius:50%;border:1px solid rgba(94,234,255,.86);transform:translateX(8px)}
+.reveal,.exit-present{position:absolute;z-index:7;right:calc(var(--sr) + 15px);width:48px;height:48px;border-radius:50%;display:none;font-size:18px;padding:0}.reveal{bottom:calc(var(--sb) + 15px)}.reveal.show{display:block}
+.exit-present{top:calc(var(--st) + 12px);font-size:10px;width:auto;padding:0 14px;border-radius:999px;background:rgba(0,0,0,.36)}
+.presenting .exit-present{display:block}.presenting .ui,.presenting .reveal{display:none!important}.presenting .badge{opacity:.2}
+.intro{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;background:radial-gradient(circle at 50% 42%,rgba(111,55,255,.24),rgba(0,0,0,.91) 42%,#000 82%);transition:opacity .5s ease}
+.intro.out{opacity:0;pointer-events:none}.orb{width:88px;height:88px;border-radius:50%;border:2px solid rgba(255,255,255,.88);box-shadow:0 0 38px rgba(142,87,255,.75),inset 0 0 25px rgba(255,65,199,.48);position:relative;animation:spin 8s linear infinite}.orb:before,.orb:after{content:"";position:absolute;border-radius:50%;border:1px solid rgba(94,234,255,.86)}.orb:before{inset:16px;transform:translateX(9px)}.orb:after{inset:25px;transform:translate(-8px,6px);border-color:rgba(255,90,191,.88)}
 @keyframes spin{to{transform:rotate(360deg)}}
-h1{font-size:40px;letter-spacing:-.045em;margin:22px 0 5px}.intro p{margin:0 0 24px;opacity:.66;font-size:14px}.enter{background:#fff;color:#000;padding:13px 18px;font-weight:820}
-.toast{position:absolute;z-index:12;left:50%;top:calc(var(--st) + 72px);transform:translateX(-50%) translateY(-8px);padding:8px 12px;border-radius:999px;background:rgba(0,0,0,.58);border:1px solid rgba(255,255,255,.13);backdrop-filter:blur(15px);font-size:11px;white-space:nowrap;opacity:0;transition:.22s}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.badge{position:absolute;z-index:3;left:14px;bottom:calc(var(--sb) + 72px);font-size:9px;letter-spacing:.12em;opacity:.35}
-@media(min-width:760px){.ui{max-width:560px;left:50%;right:auto;width:560px;transform:translateX(-50%)}.ui.hidden{transform:translateX(-50%) translateY(10px)}}
+h1{font-size:42px;letter-spacing:-.05em;margin:22px 0 4px}.intro p{margin:0 0 6px;color:rgba(255,255,255,.66);font-size:14px}.intro small{margin-bottom:24px;color:rgba(255,255,255,.38);font-size:10px;letter-spacing:.08em}.enter{background:#fff;color:#050507;padding:13px 20px;font-weight:850;min-width:160px}
+.toast{position:absolute;z-index:12;left:50%;top:calc(var(--st) + 74px);transform:translateX(-50%) translateY(-8px);max-width:calc(100vw - 36px);padding:9px 13px;border-radius:999px;background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.13);-webkit-backdrop-filter:blur(15px);backdrop-filter:blur(15px);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0;transition:.22s;pointer-events:none}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.badge{position:absolute;z-index:3;left:calc(var(--sl) + 14px);bottom:calc(var(--sb) + 73px);font-size:8px;letter-spacing:.12em;color:rgba(255,255,255,.32);font-variant-numeric:tabular-nums;transition:opacity .2s}
+.airplay-tip{position:absolute;z-index:6;left:50%;bottom:calc(var(--sb) + 25px);width:min(340px,calc(100vw - 40px));transform:translate(-50%,12px);padding:13px 16px;border-radius:18px;text-align:center;font-size:11px;line-height:1.45;background:rgba(0,0,0,.58);border:1px solid rgba(255,255,255,.13);opacity:0;pointer-events:none;transition:.25s}.airplay-tip.show{opacity:1;transform:translate(-50%,0)}
+.error{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:32px;text-align:center;line-height:1.55;color:rgba(255,255,255,.78)}
+@media(min-width:700px){.ui{max-width:590px;left:50%;right:auto;width:590px;transform:translateX(-50%)}.ui.hidden{transform:translateX(-50%) translateY(10px)}}
+@media(max-height:660px){.top{height:48px}.sheet{bottom:calc(var(--sb) + 69px);max-height:calc(100dvh - var(--st) - var(--sb) - 128px)}.dock{padding:5px}.dock button{min-height:40px}.preset{min-height:42px}.hint{display:none}}
+@media(prefers-reduced-motion:reduce){.orb{animation-duration:18s}.intro,.ui,.toast{transition-duration:.01ms}}
 </style>
 </head>
 <body>
-<canvas id="gl"></canvas>
-<div class="intro" id="intro"><div class="logo"></div><h1>PsyFlo</h1><p>Touch the light. GPU beta.</p><button class="enter" id="enter">Enter the Flow</button></div>
-<header class="ui top glass" id="top"><button class="pill" id="mode">Liquid</button><div class="brand">PSYFLO</div><button class="pill trip" id="trip">TRIP</button></header>
-<section class="ui sheet glass" id="sheet">
-  <div class="grid"><button id="sound">Sound</button><button id="tilt">Tilt</button><button id="save">Save</button></div>
-  <label class="control"><span>Energy</span><input id="energy" type="range" min=".55" max="2" value="1.05" step=".05"></label>
-  <label class="control"><span>Trail</span><input id="trail" type="range" min=".88" max=".985" value=".955" step=".005"></label>
+<canvas id="gl" aria-label="Interactive PsyFlo visual canvas"></canvas>
+<div class="intro" id="intro"><div class="orb" aria-hidden="true"></div><h1>PsyFlo</h1><p>Touch the light. Move the room.</p><small>BUILT FOR IPHONE · AIRPLAY READY</small><button class="enter" id="enter">Enter the Flow</button></div>
+<header class="ui top glass" id="top"><button id="mode" aria-label="Change visual style">Liquid</button><div class="brand"><strong>PSYFLO</strong><small id="qualityMark">AUTO</small></div><button class="trip" id="trip">TRIP</button></header>
+<section class="ui sheet glass" id="sheet" aria-label="PsyFlo controls">
+  <div class="section-title"><span>Party presets</span><span id="presetName">Aurora</span></div>
+  <div class="presets">
+    <button class="preset" data-preset="0" style="--swatch:linear-gradient(135deg,#6c46ff,#39e6ff)"><span>Aurora</span></button>
+    <button class="preset" data-preset="1" style="--swatch:linear-gradient(135deg,#ff166f,#9b4dff)"><span>Neon Rush</span></button>
+    <button class="preset" data-preset="2" style="--swatch:linear-gradient(135deg,#ff6b00,#ff1744)"><span>Solar Heat</span></button>
+    <button class="preset" data-preset="3" style="--swatch:linear-gradient(135deg,#00e1ff,#2850ff)"><span>Ice Pulse</span></button>
+    <button class="preset" data-preset="4" style="--swatch:linear-gradient(135deg,#ff4dc4,#ffcf45)"><span>Candy Flip</span></button>
+    <button class="preset" data-preset="5" style="--swatch:linear-gradient(135deg,#18224d,#8d59ff)"><span>Deep Space</span></button>
+  </div>
+  <div class="section-title"><span>Live controls</span><span>Tap to toggle</span></div>
+  <div class="tools"><button id="sound">◉<br>Sound</button><button id="tilt">↗<br>Tilt</button><button id="present">▣<br>AirPlay</button><button id="save">↓<br>Save</button></div>
+  <label class="control"><span>Energy</span><input id="energy" type="range" min="0.55" max="1.8" value="1.05" step="0.05"><output id="energyOut">1.05</output></label>
+  <label class="control"><span>Trail</span><input id="trail" type="range" min="0.88" max="0.982" value="0.95" step="0.002"><output id="trailOut">0.950</output></label>
+  <label class="control"><span>Quality</span><button id="quality">Auto</button><output id="fps">—</output></label>
+  <p class="hint">For AirPlay: start Screen Mirroring in iPhone Control Centre, then tap AirPlay here for a clean presentation.</p>
 </section>
-<nav class="ui dock glass" id="dock"><button id="palette">Palette</button><button id="mirror">Mirror</button><button id="clear">Clear</button><button id="more">More</button></nav>
-<button class="reveal glass" id="reveal">✦</button><div class="toast" id="toast"></div><div class="badge" id="badge">GPU FLOW</div>
+<nav class="ui dock glass" id="dock">
+  <button id="palette" aria-label="Change colour palette"><span class="ico">◐</span><span class="txt">Colour 1</span></button>
+  <button id="symmetry" aria-label="Change symmetry"><span class="ico">◇</span><span class="txt">Free</span></button>
+  <button id="clear" aria-label="Clear the visual"><span class="ico">×</span><span class="txt">Clear</span></button>
+  <button id="more" aria-expanded="false"><span class="ico">•••</span><span class="txt">Controls</span></button>
+</nav>
+<button class="reveal glass" id="reveal" aria-label="Show controls">✦</button>
+<button class="exit-present glass" id="exitPresent">Exit presentation</button>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="badge" id="badge">LIVE VISUAL · STARTING</div>
+<div class="airplay-tip glass" id="airplayTip">Clean screen ready. On iPhone, open Control Centre and choose <strong>Screen Mirroring</strong>.</div>
 <script>
 (()=>{
 'use strict';
-const canvas=document.getElementById('gl'),$=id=>document.getElementById(id);
-const gl=canvas.getContext('webgl2',{alpha:false,antialias:false,depth:false,stencil:false,preserveDrawingBuffer:false,powerPreference:'high-performance'});
-if(!gl){document.body.innerHTML='<div style="padding:32px;color:white;font-family:-apple-system">PsyFlo needs WebGL 2. Open this link in Safari on a recent iPhone.</div>';return}
-const VS=`#version 300 es
-in vec2 a_pos;out vec2 v_uv;void main(){v_uv=a_pos*.5+.5;gl_Position=vec4(a_pos,0.,1.);}`;
-const FS=`#version 300 es
-precision highp float;
-in vec2 v_uv;out vec4 outColor;
-uniform sampler2D u_prev;uniform vec2 u_res;uniform float u_time;uniform float u_energy;uniform float u_fade;uniform float u_audio;uniform vec2 u_tilt;uniform int u_mode;uniform int u_palette;uniform int u_mirror;uniform int u_count;uniform vec2 u_pts[5];uniform vec2 u_prevPts[5];uniform float u_press[5];
-float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}float seg(vec2 p,vec2 a,vec2 b){vec2 pa=p-a,ba=b-a;float h=clamp(dot(pa,ba)/(dot(ba,ba)+.00001),0.,1.);return length(pa-ba*h);}vec3 pal(float t){t=fract(t);if(u_palette==0)return .52+.48*cos(6.283*(t+vec3(.02,.27,.58)));if(u_palette==1)return .48+.52*cos(6.283*(t+vec3(.48,.16,.02)));if(u_palette==2)return .52+.48*cos(6.283*(t+vec3(.00,.08,.18)));if(u_palette==3)return .52+.48*cos(6.283*(t+vec3(.34,.06,.68)));if(u_palette==4)return .52+.48*cos(6.283*(t+vec3(.12,.52,.82)));return vec3(.45+.55*cos(6.283*t));}
+const canvas=document.getElementById('gl');
+const $=id=>document.getElementById(id);
+const gl=canvas.getContext('webgl',{alpha:false,antialias:false,depth:false,stencil:false,preserveDrawingBuffer:false,powerPreference:'high-performance',desynchronized:true})||canvas.getContext('experimental-webgl',{alpha:false,antialias:false,depth:false,stencil:false,preserveDrawingBuffer:false});
+if(!gl){$('intro').remove();document.body.insertAdjacentHTML('beforeend','<div class="error">PsyFlo could not start the visual engine.<br>Please close other Safari tabs, reload, and try again.</div>');return;}
+
+const VS='attribute vec2 a_pos;varying vec2 v_uv;void main(){v_uv=a_pos*.5+.5;gl_Position=vec4(a_pos,0.,1.);}';
+const FLOW_FS=`precision highp float;
+varying vec2 v_uv;
+uniform sampler2D u_prev;
+uniform vec2 u_res;
+uniform float u_time,u_energy,u_decay,u_audio;
+uniform vec2 u_tilt;
+uniform int u_style,u_palette,u_sym,u_count;
+uniform vec2 u_pts[5],u_prevPts[5];
+uniform float u_press[5];
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),f.x),f.y);}
+float seg(vec2 p,vec2 a,vec2 b){vec2 pa=p-a,ba=b-a;float h=clamp(dot(pa,ba)/(dot(ba,ba)+.00001),0.,1.);return length(pa-ba*h);}
+vec2 rot(vec2 p,float a){float c=cos(a),s=sin(a);return vec2(c*p.x-s*p.y,s*p.x+c*p.y);}
+vec2 symmetryPoint(vec2 p,int k){
+ if(u_sym==2){if(k==1)p.x=-p.x;return p;}
+ if(u_sym==4){if(k==1||k==3)p.x=-p.x;if(k==2||k==3)p.y=-p.y;return p;}
+ if(u_sym==8){int r=k;if(k>=4){p.x=-p.x;r=k-4;}return rot(p,float(r)*1.5707963);}
+ return p;
+}
+vec3 pal(float t){t=fract(t);if(u_palette==0)return .52+.48*cos(6.283*(t+vec3(.02,.27,.58)));if(u_palette==1)return .5+.5*cos(6.283*(t+vec3(.48,.16,.02)));if(u_palette==2)return .5+.5*cos(6.283*(t+vec3(.00,.08,.18)));if(u_palette==3)return .52+.48*cos(6.283*(t+vec3(.34,.06,.68)));if(u_palette==4)return .52+.48*cos(6.283*(t+vec3(.12,.52,.82)));return .48+.52*cos(6.283*(t+vec3(.72,.36,.08)));}
 void main(){
- vec2 uv=v_uv;vec2 asp=vec2(u_res.x/u_res.y,1.);vec2 p=(uv-.5)*asp;float t=u_time;
- float n=noise(p*4.+vec2(t*.07,-t*.05));vec2 warp=.0025*u_energy*vec2(sin(p.y*8.+t+n*3.),cos(p.x*7.-t+n*2.));warp+=u_tilt/u_res*1.6;
- vec3 prev=texture(u_prev,clamp(uv+warp,0.,1.)).rgb*u_fade;vec3 add=vec3(0.);
- for(int i=0;i<5;i++){if(i>=u_count)break;vec2 q=(u_pts[i]-.5)*asp;vec2 r=(u_prevPts[i]-.5)*asp;if(u_mirror==1&&q.x<0.)q.x=-q.x;float d=seg(p,r,q);float radial=length(p-q);float pr=max(.35,u_press[i]);float e=u_energy*(1.+u_audio*1.8);
-   if(u_mode==0){float core=exp(-d*(95./e))*1.7;float wave=exp(-radial*10.)*(.5+.5*sin(radial*90.-t*7.));add+=pal(t*.05+radial*1.8+float(i)*.17)*(core+wave*.24)*pr;}
-   else if(u_mode==1){float core=pow(max(0.,1.-d*(52./e)),5.);float ring=pow(max(0.,1.-abs(radial-.055-.016*sin(t*3.))*120.),2.);add+=pal(.16+float(i)*.21+t*.035)*(core*2.2+ring*.7)*pr;}
-   else if(u_mode==2){float sparks=step(.965,noise((p-q)*210.+t*vec2(12.,-9.)))*exp(-radial*5.);float beam=exp(-d*(120./e));add+=pal(radial*3.+t*.08+float(i)*.2)*(beam*.9+sparks*1.7)*pr;}
-   else{float a=atan(p.y-q.y,p.x-q.x);float k=abs(fract(a/1.0472+.5)-.5);float petals=exp(-radial*7.)*pow(max(0.,1.-k*5.),3.);float rings=.5+.5*sin(radial*120.-t*5.+a*6.);add+=pal(a/6.283+radial*2.+t*.03)*(petals*(.35+.65*rings)+exp(-d*80.)*.8)*pr;}
-   if(u_mirror==1){vec2 mq=vec2(-q.x,q.y),mr=vec2(-r.x,r.y);float md=seg(p,mr,mq);add+=pal(t*.04+float(i)*.19+.45)*exp(-md*(95./e))*.9*pr;}
- }
- add*=.72+u_audio*.55;vec3 col=prev+add;col=col/(1.+col*.42);outColor=vec4(col,1.);
+ vec2 uv=v_uv,asp=vec2(u_res.x/u_res.y,1.0),p=(uv-.5)*asp;float t=u_time;
+ float n=noise(p*3.5+vec2(t*.055,-t*.04));vec2 warp=.0022*u_energy*vec2(sin(p.y*7.5+t+n*2.7),cos(p.x*6.8-t+n*2.2));warp+=u_tilt*.000055;
+ vec3 prev=texture2D(u_prev,clamp(uv+warp,vec2(.002),vec2(.998))).rgb*u_decay;vec3 add=vec3(0.0);
+ for(int i=0;i<5;i++){if(i<u_count){
+  vec2 q0=(u_pts[i]-.5)*asp,r0=(u_prevPts[i]-.5)*asp;float pr=max(.34,u_press[i]);float e=u_energy*(1.0+u_audio*1.45);
+  for(int k=0;k<8;k++){if(k<u_sym){
+   vec2 q=symmetryPoint(q0,k),r=symmetryPoint(r0,k);float d=seg(p,r,q),radial=length(p-q);vec3 ink=pal(t*.035+radial*1.65+float(i)*.17+float(k)*.035);
+   if(u_style==0){float core=exp(-d*(92.0/e))*1.5;float wave=exp(-radial*10.0)*(.5+.5*sin(radial*88.0-t*6.0));add+=ink*(core+wave*.20)*pr;}
+   else if(u_style==1){float core=pow(max(0.0,1.0-d*(50.0/e)),5.0);float ring=pow(max(0.0,1.0-abs(radial-.055-.014*sin(t*2.7))*118.0),2.0);add+=ink*(core*2.0+ring*.55)*pr;}
+   else if(u_style==2){float beam=exp(-d*(115.0/e));float sparks=step(.975,hash(floor((p-q)*180.0)+floor(t*7.0)))*exp(-radial*5.2);add+=ink*(beam*.8+sparks*1.25)*pr;}
+   else{float a=atan(p.y-q.y,p.x-q.x),petal=.5+.5*cos(a*6.0+radial*24.0-t*1.4);float bloom=exp(-radial*6.5)*petal*petal;add+=ink*(bloom*.54+exp(-d*(78.0/e))*.72)*pr;}
+  }}
+ }}
+ add*=.68+u_audio*.6;vec3 col=prev+add;col=col/(1.0+col*.42);gl_FragColor=vec4(col,1.0);
 }`;
-function shader(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));return s}
-const prog=gl.createProgram();gl.attachShader(prog,shader(gl.VERTEX_SHADER,VS));gl.attachShader(prog,shader(gl.FRAGMENT_SHADER,FS));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(prog));gl.useProgram(prog);
-const quad=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);const loc=gl.getAttribLocation(prog,'a_pos');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
-const U={};['u_prev','u_res','u_time','u_energy','u_fade','u_audio','u_tilt','u_mode','u_palette','u_mirror','u_count','u_pts','u_prevPts','u_press'].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
-let cssW=0,cssH=0,scale=1,tex=[],fb=[],read=0,mode=0,palette=0,mirror=0,energy=1.05,fade=.955,audio=.0,tilt=[0,0],qualityLocked=false;
-const touches=new Map(),modes=['Liquid','Neon','Particles','Fractal'];
-function makeTarget(w,h){const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);const f=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,f);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,t,0);return[t,f]}
-function resize(force=false){cssW=innerWidth;cssH=innerHeight;const maxPixels=qualityLocked?2e6:1.15e6;scale=Math.min(devicePixelRatio||1,Math.sqrt(maxPixels/(cssW*cssH)),1.2);const w=Math.max(1,Math.floor(cssW*scale)),h=Math.max(1,Math.floor(cssH*scale));if(!force&&canvas.width===w&&canvas.height===h)return;canvas.width=w;canvas.height=h;canvas.style.width=cssW+'px';canvas.style.height=cssH+'px';tex.forEach(gl.deleteTexture);fb.forEach(gl.deleteFramebuffer);tex=[];fb=[];for(let i=0;i<2;i++){const [t,f]=makeTarget(w,h);tex.push(t);fb.push(f);gl.bindFramebuffer(gl.FRAMEBUFFER,f);gl.viewport(0,0,w,h);gl.clearColor(.008,.008,.016,1);gl.clear(gl.COLOR_BUFFER_BIT)}read=0;gl.bindFramebuffer(gl.FRAMEBUFFER,null)}
-addEventListener('resize',()=>resize(true),{passive:true});resize(true);
-function pointer(e){return[e.clientX/cssW,1-e.clientY/cssH]}
-canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);const p=pointer(e);touches.set(e.pointerId,{p,prev:p,press:e.pressure||.65});navigator.vibrate?.(6)});
-canvas.addEventListener('pointermove',e=>{const t=touches.get(e.pointerId);if(!t)return;const p=pointer(e);t.prev=t.p;t.p=p;t.press=e.pressure||.55});
-const end=e=>touches.delete(e.pointerId);canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);
-let frames=0,lastFps=performance.now(),fps=60;
-function draw(now){
- const write=1-read;gl.bindFramebuffer(gl.FRAMEBUFFER,fb[write]);gl.viewport(0,0,canvas.width,canvas.height);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,tex[read]);gl.uniform1i(U.u_prev,0);gl.uniform2f(U.u_res,canvas.width,canvas.height);gl.uniform1f(U.u_time,now*.001);gl.uniform1f(U.u_energy,energy);gl.uniform1f(U.u_fade,fade);gl.uniform1f(U.u_audio,audio);gl.uniform2f(U.u_tilt,tilt[0],tilt[1]);gl.uniform1i(U.u_mode,mode);gl.uniform1i(U.u_palette,palette);gl.uniform1i(U.u_mirror,mirror);
- const arr=[...touches.values()].slice(0,5),pts=new Float32Array(10),prs=new Float32Array(10),press=new Float32Array(5);arr.forEach((t,i)=>{pts[i*2]=t.p[0];pts[i*2+1]=t.p[1];prs[i*2]=t.prev[0];prs[i*2+1]=t.prev[1];press[i]=t.press;t.prev[0]+=(t.p[0]-t.prev[0])*.45;t.prev[1]+=(t.p[1]-t.prev[1])*.45});gl.uniform1i(U.u_count,arr.length);gl.uniform2fv(U.u_pts,pts);gl.uniform2fv(U.u_prevPts,prs);gl.uniform1fv(U.u_press,press);gl.drawArrays(gl.TRIANGLES,0,6);
- gl.bindFramebuffer(gl.READ_FRAMEBUFFER,fb[write]);gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,null);gl.blitFramebuffer(0,0,canvas.width,canvas.height,0,0,canvas.width,canvas.height,gl.COLOR_BUFFER_BIT,gl.NEAREST);read=write;
- frames++;if(now-lastFps>1000){fps=frames*1000/(now-lastFps);frames=0;lastFps=now;if(fps<43&&scale>.72&&!qualityLocked){scale*=.82;const oldMax=qualityLocked;qualityLocked=true;resize(true);qualityLocked=oldMax;toast('Performance optimized')}$('badge').textContent=`GPU FLOW · ${Math.round(fps)} FPS`}
- requestAnimationFrame(draw)
-}requestAnimationFrame(draw);
-function toast(m){$('toast').textContent=m;$('toast').classList.add('show');clearTimeout($('toast')._t);$('toast')._t=setTimeout(()=>$('toast').classList.remove('show'),1350)}
-function sync(){$('mode').textContent=modes[mode];$('palette').textContent='Palette '+(palette+1);$('mirror').textContent=mirror?'Mirror On':'Mirror'}
-$('enter').onclick=()=>{$('intro').classList.add('out');setTimeout(()=>$('intro').remove(),600)};
-$('mode').onclick=()=>{mode=(mode+1)%4;sync();toast(modes[mode])};$('palette').onclick=()=>{palette=(palette+1)%6;sync();toast('Palette '+(palette+1))};$('mirror').onclick=()=>{mirror=mirror?0:1;sync()};
-$('trip').onclick=()=>{mode=Math.floor(Math.random()*4);palette=Math.floor(Math.random()*6);mirror=Math.random()>.5?1:0;energy=.85+Math.random()*.8;fade=.925+Math.random()*.045;$('energy').value=energy;$('trail').value=fade;sync();toast('New trip')};
-$('clear').onclick=()=>resize(true);$('more').onclick=()=>{$('sheet').classList.toggle('open');$('more').textContent=$('sheet').classList.contains('open')?'Close':'More'};$('energy').oninput=e=>energy=+e.target.value;$('trail').oninput=e=>fade=+e.target.value;
-$('sound').onclick=async()=>{try{const s=await navigator.mediaDevices.getUserMedia({audio:true});const ac=new (window.AudioContext||window.webkitAudioContext)(),src=ac.createMediaStreamSource(s),an=ac.createAnalyser();an.fftSize=128;src.connect(an);const d=new Uint8Array(an.frequencyBinCount);(function a(){an.getByteFrequencyData(d);let sum=0;for(const v of d)sum+=v;audio+=(sum/(d.length*255)-audio)*.18;requestAnimationFrame(a)})();$('sound').textContent='Sound On';toast('Sound reactive')}catch{toast('Microphone unavailable')}};
-$('tilt').onclick=async()=>{try{if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){if(await DeviceOrientationEvent.requestPermission()!=='granted')throw 0}addEventListener('deviceorientation',e=>{tilt[0]=Math.max(-18,Math.min(18,e.gamma||0));tilt[1]=Math.max(-18,Math.min(18,(e.beta||45)-45))},{passive:true});$('tilt').textContent='Tilt On';toast('Tilt enabled')}catch{toast('Motion denied')}};
-$('save').onclick=()=>{try{gl.bindFramebuffer(gl.FRAMEBUFFER,fb[read]);const w=canvas.width,h=canvas.height,pix=new Uint8Array(w*h*4);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,pix);const out=document.createElement('canvas');out.width=w;out.height=h;const ox=out.getContext('2d'),img=ox.createImageData(w,h);for(let y=0;y<h;y++){img.data.set(pix.subarray(y*w*4,(y+1)*w*4),(h-1-y)*w*4)}ox.putImageData(img,0,0);const a=document.createElement('a');a.download='PsyFlo-'+Date.now()+'.png';a.href=out.toDataURL('image/png');a.click();toast('Artwork saved')}catch{toast('Take a screenshot to save')}};
-let uiVisible=true,tapStart=0;function ui(v){uiVisible=v;['top','dock','sheet'].forEach(id=>$(id).classList.toggle('hidden',!v));$('reveal').classList.toggle('show',!v)}$('reveal').onclick=()=>ui(true);canvas.addEventListener('touchstart',e=>{if(e.touches.length===2)tapStart=performance.now()},{passive:true});canvas.addEventListener('touchend',()=>{if(tapStart&&performance.now()-tapStart<280){ui(!uiVisible);tapStart=0}},{passive:true});
-let idle;function bump(){clearTimeout(idle);if(!uiVisible)return;idle=setTimeout(()=>{if(!$('sheet').classList.contains('open'))ui(false)},4500)}['pointerdown','pointermove'].forEach(ev=>canvas.addEventListener(ev,bump,{passive:true}));bump();sync();
+const DISPLAY_FS=`precision mediump float;varying vec2 v_uv;uniform sampler2D u_tex;uniform float u_time;float h(vec2 p){return fract(sin(dot(p,vec2(41.1,289.7)))*45758.5453);}void main(){vec3 c=texture2D(u_tex,v_uv).rgb;float v=smoothstep(.86,.18,length(v_uv-.5));c*=.82+.18*v;c+=(h(v_uv+u_time)-.5)/255.0;gl_FragColor=vec4(c,1.);}`;
+
+function compile(type,source){const shader=gl.createShader(type);gl.shaderSource(shader,source);gl.compileShader(shader);if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS)){const message=gl.getShaderInfoLog(shader);gl.deleteShader(shader);throw new Error(message);}return shader;}
+function program(fragment){const p=gl.createProgram();const v=compile(gl.VERTEX_SHADER,VS),f=compile(gl.FRAGMENT_SHADER,fragment);gl.attachShader(p,v);gl.attachShader(p,f);gl.linkProgram(p);gl.deleteShader(v);gl.deleteShader(f);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(p));return p;}
+let flowProgram,displayProgram;
+try{flowProgram=program(FLOW_FS);displayProgram=program(DISPLAY_FS);}catch(error){console.error(error);$('intro').remove();document.body.insertAdjacentHTML('beforeend','<div class="error">The visual engine could not compile on this device.<br>Reload Safari to try again.</div>');return;}
+const quad=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
+function bindQuad(p){gl.useProgram(p);gl.bindBuffer(gl.ARRAY_BUFFER,quad);const at=gl.getAttribLocation(p,'a_pos');gl.enableVertexAttribArray(at);gl.vertexAttribPointer(at,2,gl.FLOAT,false,0,0);}
+const U={};['u_prev','u_res','u_time','u_energy','u_decay','u_audio','u_tilt','u_style','u_palette','u_sym','u_count'].forEach(n=>U[n]=gl.getUniformLocation(flowProgram,n));U.u_pts=gl.getUniformLocation(flowProgram,'u_pts[0]');U.u_prevPts=gl.getUniformLocation(flowProgram,'u_prevPts[0]');U.u_press=gl.getUniformLocation(flowProgram,'u_press[0]');
+const DU={u_tex:gl.getUniformLocation(displayProgram,'u_tex'),u_time:gl.getUniformLocation(displayProgram,'u_time')};
+
+let cssW=innerWidth,cssH=innerHeight,textures=[],buffers=[],read=0;
+let style=0,palette=0,symmetry=1,energy=1.05,trail=.95,audio=0,tilt=[0,0];
+let qualityMode='auto',autoLevel=2,fpsSmooth=60,qualityCooldown=0,lowTicks=0,highTicks=0;
+const qualityLevels=[{name:'Eco',ratio:.78,mp:.42},{name:'Balanced',ratio:1.0,mp:.64},{name:'High',ratio:1.2,mp:.86},{name:'Ultra',ratio:1.38,mp:1.08}];
+const styleNames=['Liquid','Neon','Particles','Bloom'],symmetryNames={1:'Free',2:'Mirror 2',4:'Mirror 4',8:'Kaleido 8'};
+const presets=[
+ {name:'Aurora',style:0,palette:0,sym:4,energy:1.0,trail:.952},
+ {name:'Neon Rush',style:1,palette:1,sym:2,energy:1.2,trail:.938},
+ {name:'Solar Heat',style:0,palette:2,sym:8,energy:1.08,trail:.958},
+ {name:'Ice Pulse',style:1,palette:4,sym:4,energy:.92,trail:.944},
+ {name:'Candy Flip',style:3,palette:3,sym:8,energy:1.14,trail:.962},
+ {name:'Deep Space',style:2,palette:5,sym:1,energy:.82,trail:.968}
+];
+const pointers=new Map(),pointData=new Float32Array(10),prevPointData=new Float32Array(10),pressureData=new Float32Array(5);
+
+function createTarget(w,h){const texture=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,texture);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);const buffer=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,buffer);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,texture,0);if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)!==gl.FRAMEBUFFER_COMPLETE)throw new Error('Framebuffer unavailable');return[texture,buffer];}
+function currentLevel(){if(qualityMode==='auto')return autoLevel;if(qualityMode==='high')return 3;if(qualityMode==='balanced')return 1;return 0;}
+function resize(force=false){cssW=Math.max(1,innerWidth);cssH=Math.max(1,innerHeight);const level=qualityLevels[currentLevel()],dpr=Math.min(devicePixelRatio||1,2);const ratio=Math.min(dpr,level.ratio,Math.sqrt(level.mp*1000000/(cssW*cssH)));const w=Math.max(2,Math.round(cssW*ratio)),h=Math.max(2,Math.round(cssH*ratio));if(!force&&canvas.width===w&&canvas.height===h)return;canvas.width=w;canvas.height=h;canvas.style.width=cssW+'px';canvas.style.height=cssH+'px';textures.forEach(t=>gl.deleteTexture(t));buffers.forEach(b=>gl.deleteFramebuffer(b));textures=[];buffers=[];for(let i=0;i<2;i++){const target=createTarget(w,h);textures.push(target[0]);buffers.push(target[1]);gl.viewport(0,0,w,h);gl.clearColor(.008,.008,.016,1);gl.clear(gl.COLOR_BUFFER_BIT);}read=0;gl.bindFramebuffer(gl.FRAMEBUFFER,null);qualityCooldown=performance.now()+2500;updateQualityUI();}
+function clearFlow(){for(const buffer of buffers){gl.bindFramebuffer(gl.FRAMEBUFFER,buffer);gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(.008,.008,.016,1);gl.clear(gl.COLOR_BUFFER_BIT);}gl.bindFramebuffer(gl.FRAMEBUFFER,null);toast('Canvas cleared');}
+addEventListener('resize',()=>resize(false),{passive:true});addEventListener('orientationchange',()=>setTimeout(()=>resize(true),180),{passive:true});
+try{resize(true);}catch(error){console.error(error);$('intro').remove();document.body.insertAdjacentHTML('beforeend','<div class="error">PsyFlo ran out of graphics memory.<br>Close other tabs and reload Safari.</div>');return;}
+
+function pointerPosition(e){return[Math.max(0,Math.min(1,e.clientX/cssW)),Math.max(0,Math.min(1,1-e.clientY/cssH))];}
+function pointerPressure(e){return e.pointerType==='mouse'?.62:(e.pressure>0?Math.max(.25,e.pressure):.55);}
+canvas.addEventListener('pointerdown',e=>{e.preventDefault();if(pointers.size>=5)return;canvas.setPointerCapture?.(e.pointerId);const p=pointerPosition(e);pointers.set(e.pointerId,{p:p.slice(),prev:p.slice(),pressure:pointerPressure(e)});if(navigator.vibrate)navigator.vibrate(5);bumpIdle();},{passive:false});
+canvas.addEventListener('pointermove',e=>{const item=pointers.get(e.pointerId);if(!item)return;e.preventDefault();const samples=e.getCoalescedEvents?e.getCoalescedEvents():[e],sample=samples[samples.length-1]||e;item.p=pointerPosition(sample);item.pressure=pointerPressure(sample);bumpIdle();},{passive:false});
+function releasePointer(e){pointers.delete(e.pointerId);}canvas.addEventListener('pointerup',releasePointer);canvas.addEventListener('pointercancel',releasePointer);canvas.addEventListener('lostpointercapture',releasePointer);
+
+let lastFrame=performance.now(),fpsFrames=0,fpsStarted=lastFrame,running=true;
+function render(now){
+ if(!running){requestAnimationFrame(render);return;}
+ const dt=Math.min(.05,Math.max(.001,(now-lastFrame)/1000));lastFrame=now;
+ pointData.fill(0);prevPointData.fill(0);pressureData.fill(0);let count=0;
+ for(const item of pointers.values()){if(count>=5)break;const j=count*2;pointData[j]=item.p[0];pointData[j+1]=item.p[1];prevPointData[j]=item.prev[0];prevPointData[j+1]=item.prev[1];pressureData[count]=item.pressure;item.prev[0]+=(item.p[0]-item.prev[0])*.72;item.prev[1]+=(item.p[1]-item.prev[1])*.72;count++;}
+ const write=1-read;bindQuad(flowProgram);gl.bindFramebuffer(gl.FRAMEBUFFER,buffers[write]);gl.viewport(0,0,canvas.width,canvas.height);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,textures[read]);gl.uniform1i(U.u_prev,0);gl.uniform2f(U.u_res,canvas.width,canvas.height);gl.uniform1f(U.u_time,now*.001);gl.uniform1f(U.u_energy,energy);gl.uniform1f(U.u_decay,Math.pow(trail,dt*60));gl.uniform1f(U.u_audio,audio);gl.uniform2f(U.u_tilt,tilt[0],tilt[1]);gl.uniform1i(U.u_style,style);gl.uniform1i(U.u_palette,palette);gl.uniform1i(U.u_sym,symmetry);gl.uniform1i(U.u_count,count);gl.uniform2fv(U.u_pts,pointData);gl.uniform2fv(U.u_prevPts,prevPointData);gl.uniform1fv(U.u_press,pressureData);gl.drawArrays(gl.TRIANGLES,0,6);
+ bindQuad(displayProgram);gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,canvas.width,canvas.height);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,textures[write]);gl.uniform1i(DU.u_tex,0);gl.uniform1f(DU.u_time,now*.001);gl.drawArrays(gl.TRIANGLES,0,6);read=write;
+ fpsFrames++;if(now-fpsStarted>=1000){const measured=fpsFrames*1000/(now-fpsStarted);fpsSmooth=fpsSmooth*.6+measured*.4;fpsFrames=0;fpsStarted=now;updateFps();adaptQuality(now);}
+ requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+document.addEventListener('visibilitychange',()=>{running=!document.hidden;lastFrame=performance.now();fpsFrames=0;fpsStarted=lastFrame;if(running)reacquireWakeLock();});
+canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();running=false;toast('Visual paused — restoring…');});canvas.addEventListener('webglcontextrestored',()=>location.reload());
+
+function adaptQuality(now){if(qualityMode!=='auto'||now<qualityCooldown)return;if(fpsSmooth<53){lowTicks++;highTicks=0;}else if(fpsSmooth>57.5){highTicks++;lowTicks=0;}else{lowTicks=0;highTicks=0;}if(lowTicks>=2&&autoLevel>0){autoLevel--;lowTicks=0;qualityCooldown=now+4500;resize(true);toast('Quality adjusted for smoothness');}else if(highTicks>=8&&autoLevel<3){autoLevel++;highTicks=0;qualityCooldown=now+8000;resize(true);toast('Quality raised');}}
+function updateFps(){$('fps').value=Math.round(fpsSmooth)+' fps';$('fps').textContent=Math.round(fpsSmooth)+' fps';$('badge').textContent='LIVE VISUAL · '+Math.round(fpsSmooth)+' FPS · '+qualityLevels[currentLevel()].name.toUpperCase();}
+function updateQualityUI(){const label=qualityMode==='auto'?'Auto · '+qualityLevels[autoLevel].name:qualityMode[0].toUpperCase()+qualityMode.slice(1);$('quality').textContent=label;$('qualityMark').textContent=qualityMode==='auto'?'AUTO':'LOCKED';}
+function toast(message,duration=1450){$('toast').textContent=message;$('toast').classList.add('show');clearTimeout($('toast')._timer);$('toast')._timer=setTimeout(()=>$('toast').classList.remove('show'),duration);}
+function sync(){
+ $('mode').textContent=styleNames[style];$('palette').querySelector('.txt').textContent='Colour '+(palette+1);$('symmetry').querySelector('.txt').textContent=symmetryNames[symmetry];$('symmetry').querySelector('.ico').textContent=symmetry===1?'◇':symmetry===2?'◐':symmetry===4?'✣':'✺';$('energy').value=energy;$('trail').value=trail;$('energyOut').value=energy.toFixed(2);$('energyOut').textContent=energy.toFixed(2);$('trailOut').value=trail.toFixed(3);$('trailOut').textContent=trail.toFixed(3);updateQualityUI();
+}
+function selectPreset(index,announce=true){const preset=presets[index];style=preset.style;palette=preset.palette;symmetry=preset.sym;energy=preset.energy;trail=preset.trail;document.querySelectorAll('.preset').forEach((button,i)=>button.classList.toggle('active',i===index));$('presetName').textContent=preset.name;sync();if(announce)toast(preset.name+' loaded');}
+
+$('enter').onclick=async()=>{$('intro').classList.add('out');setTimeout(()=>$('intro')?.remove(),520);try{await screen.orientation?.lock?.('portrait-primary');}catch{}toast('Draw with one or more fingers',1900);};
+$('mode').onclick=()=>{style=(style+1)%styleNames.length;sync();toast(styleNames[style]);};
+$('palette').onclick=()=>{palette=(palette+1)%6;sync();toast('Colour '+(palette+1));};
+$('symmetry').onclick=()=>{symmetry=({1:2,2:4,4:8,8:1})[symmetry];sync();toast(symmetryNames[symmetry]);};
+$('trip').onclick=()=>{const index=Math.floor(Math.random()*presets.length);selectPreset(index,false);energy=Math.min(1.65,energy*(.9+Math.random()*.3));palette=(palette+Math.floor(Math.random()*5))%6;sync();toast('New trip · '+presets[index].name);};
+$('clear').onclick=clearFlow;
+function closeSheet(){$('sheet').classList.remove('open');$('more').setAttribute('aria-expanded','false');$('more').querySelector('.txt').textContent='Controls';}
+$('more').onclick=()=>{const open=$('sheet').classList.toggle('open');$('more').setAttribute('aria-expanded',String(open));$('more').querySelector('.txt').textContent=open?'Close':'Controls';bumpIdle();};
+document.querySelectorAll('.preset').forEach(button=>button.onclick=()=>selectPreset(Number(button.dataset.preset)));
+$('energy').oninput=e=>{energy=Number(e.target.value);$('energyOut').value=energy.toFixed(2);$('energyOut').textContent=energy.toFixed(2);};
+$('trail').oninput=e=>{trail=Number(e.target.value);$('trailOut').value=trail.toFixed(3);$('trailOut').textContent=trail.toFixed(3);};
+$('quality').onclick=()=>{qualityMode=qualityMode==='auto'?'high':qualityMode==='high'?'balanced':qualityMode==='balanced'?'eco':'auto';lowTicks=highTicks=0;resize(true);toast('Quality: '+$('quality').textContent);};
+
+let audioContext,analyser,audioData,audioStream,audioLoop=0;
+function stopSound(){cancelAnimationFrame(audioLoop);audioLoop=0;audio=0;audioStream?.getTracks().forEach(track=>track.stop());audioStream=null;audioContext?.close();audioContext=null;$('sound').classList.remove('on');$('sound').innerHTML='◉<br>Sound';toast('Sound off');}
+$('sound').onclick=async()=>{if(audioStream){stopSound();return;}try{audioStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});audioContext=new(window.AudioContext||window.webkitAudioContext)();await audioContext.resume();const source=audioContext.createMediaStreamSource(audioStream);analyser=audioContext.createAnalyser();analyser.fftSize=128;analyser.smoothingTimeConstant=.72;source.connect(analyser);audioData=new Uint8Array(analyser.frequencyBinCount);const listen=()=>{analyser.getByteFrequencyData(audioData);let sum=0;const bins=Math.min(28,audioData.length);for(let i=1;i<bins;i++)sum+=audioData[i];const level=sum/(bins*255);audio+=(level-audio)*.16;audioLoop=requestAnimationFrame(listen);};listen();$('sound').classList.add('on');$('sound').innerHTML='◉<br>Sound On';toast('Sound reactive');}catch(error){console.warn(error);audioStream=null;toast('Allow microphone access in Safari settings',2400);}};
+let tiltEnabled=false;
+function onOrientation(e){tilt[0]=Math.max(-20,Math.min(20,e.gamma||0));tilt[1]=Math.max(-20,Math.min(20,(e.beta||45)-45));}
+$('tilt').onclick=async()=>{if(tiltEnabled){removeEventListener('deviceorientation',onOrientation);tiltEnabled=false;tilt=[0,0];$('tilt').classList.remove('on');$('tilt').innerHTML='↗<br>Tilt';toast('Tilt off');return;}try{if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'&&await DeviceOrientationEvent.requestPermission()!=='granted')throw new Error('denied');addEventListener('deviceorientation',onOrientation,{passive:true});tiltEnabled=true;$('tilt').classList.add('on');$('tilt').innerHTML='↗<br>Tilt On';toast('Tilt reactive');}catch{toast('Allow motion access to use Tilt',2200);}};
+
+async function snapshotBlob(){const w=canvas.width,h=canvas.height,pixels=new Uint8Array(w*h*4);gl.bindFramebuffer(gl.FRAMEBUFFER,buffers[read]);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,pixels);gl.bindFramebuffer(gl.FRAMEBUFFER,null);const out=document.createElement('canvas');out.width=w;out.height=h;const ctx=out.getContext('2d'),image=ctx.createImageData(w,h),row=w*4;for(let y=0;y<h;y++)image.data.set(pixels.subarray(y*row,(y+1)*row),(h-1-y)*row);ctx.putImageData(image,0,0);return new Promise((resolve,reject)=>out.toBlob(blob=>blob?resolve(blob):reject(new Error('Image export failed')),'image/png'));}
+$('save').onclick=async()=>{try{toast('Preparing artwork…');const blob=await snapshotBlob(),file=new File([blob],'PsyFlo-'+Date.now()+'.png',{type:'image/png'});if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file],title:'PsyFlo artwork'});toast('Artwork ready');}else{const link=document.createElement('a');link.download=file.name;link.href=URL.createObjectURL(blob);link.click();setTimeout(()=>URL.revokeObjectURL(link.href),2000);toast('Artwork saved');}}catch(error){if(error?.name!=='AbortError')toast('Use an iPhone screenshot to save',2200);}};
+
+let wakeLock=null,presenting=false;
+async function reacquireWakeLock(){if(presenting&&document.visibilityState==='visible'&&navigator.wakeLock)try{wakeLock=await navigator.wakeLock.request('screen');}catch{}}
+async function enterPresentation(){presenting=true;document.body.classList.add('presenting');closeSheet();$('airplayTip').classList.add('show');setTimeout(()=>$('airplayTip').classList.remove('show'),5500);await reacquireWakeLock();try{await document.documentElement.requestFullscreen?.({navigationUI:'hide'});}catch{}try{await screen.orientation?.lock?.('landscape');}catch{}resize(true);}
+async function exitPresentation(){presenting=false;document.body.classList.remove('presenting');$('airplayTip').classList.remove('show');try{await wakeLock?.release();}catch{}wakeLock=null;try{if(document.fullscreenElement)await document.exitFullscreen();}catch{}try{screen.orientation?.unlock?.();}catch{}resize(true);bumpIdle();}
+$('present').onclick=enterPresentation;$('exitPresent').onclick=exitPresentation;document.addEventListener('fullscreenchange',()=>{if(presenting&&!document.fullscreenElement&&document.fullscreenEnabled)exitPresentation();});
+
+let uiVisible=true,idleTimer;
+function setUi(visible){uiVisible=visible;['top','dock','sheet'].forEach(id=>$(id).classList.toggle('hidden',!visible));$('reveal').classList.toggle('show',!visible);if(!visible)closeSheet();}
+function bumpIdle(){clearTimeout(idleTimer);if(!uiVisible||presenting)return;idleTimer=setTimeout(()=>{if(!$('sheet').classList.contains('open')&&pointers.size===0)setUi(false);},7000);}
+$('reveal').onclick=()=>{setUi(true);bumpIdle();};['pointerdown','click','input'].forEach(event=>document.addEventListener(event,bumpIdle,{passive:true}));
+selectPreset(0,false);sync();bumpIdle();
 })();
 </script>
 </body>
