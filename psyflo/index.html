@@ -9,6 +9,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PsyFlo">
 <meta name="description" content="PsyFlo is a touch-first live psychedelic visual instrument built for iPhone and AirPlay.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="PsyFlo — Live Visuals">
+<meta property="og:description" content="Touch, sound and AirPlay-ready psychedelic visuals for the room.">
+<meta property="og:url" content="https://nardus101.github.io/3Dope/psyflo/">
+<link rel="canonical" href="https://nardus101.github.io/3Dope/psyflo/">
 <title>PsyFlo — Live Visuals</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -35,14 +40,15 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .presets{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:14px}
 .preset{position:relative;overflow:hidden;min-height:46px;padding:9px 5px;border-color:rgba(255,255,255,.08)}
 .preset:before{content:"";position:absolute;inset:0;background:var(--swatch);opacity:.24}.preset span{position:relative}.preset.active{border-color:rgba(255,255,255,.48);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
-.tools{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:9px}.tools button{padding:7px 3px;font-size:9px}.tools button.on{background:rgba(94,234,255,.17);border-color:rgba(94,234,255,.4)}
+.tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(58px,1fr));gap:7px;margin-bottom:9px}.tools button{padding:7px 3px;font-size:9px}.tools button.on{background:rgba(94,234,255,.17);border-color:rgba(94,234,255,.4)}
 .control{display:grid;grid-template-columns:68px 1fr 32px;align-items:center;gap:8px;min-height:36px;font-size:10px;color:rgba(255,255,255,.72)}
 .control output{text-align:right;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.48)}
 input[type=range]{width:100%;height:24px;accent-color:#fff;touch-action:pan-x}
 .hint{text-align:center;margin:9px 0 1px;font-size:9px;line-height:1.4;color:rgba(255,255,255,.4)}
 .hidden{opacity:0;transform:translateY(10px);pointer-events:none}
 .reveal,.exit-present{position:absolute;z-index:7;right:calc(var(--sr) + 15px);width:48px;height:48px;border-radius:50%;display:none;font-size:18px;padding:0}.reveal{bottom:calc(var(--sb) + 15px)}.reveal.show{display:block}
-.exit-present{top:calc(var(--st) + 12px);font-size:10px;width:auto;padding:0 14px;border-radius:999px;background:rgba(0,0,0,.36)}
+.exit-present{top:calc(var(--st) + clamp(12px,3vh,32px));right:calc(var(--sr) + clamp(15px,3vw,42px));font-size:10px;width:auto;padding:0 14px;border-radius:999px;background:rgba(0,0,0,.36);opacity:.48}
+.exit-present:active,.exit-present:focus-visible{opacity:1}
 .presenting .exit-present{display:block}.presenting .ui,.presenting .reveal{display:none!important}.presenting .badge{opacity:.2}
 .intro{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;background:radial-gradient(circle at 50% 42%,rgba(111,55,255,.24),rgba(0,0,0,.91) 42%,#000 82%);transition:opacity .5s ease}
 .intro.out{opacity:0;pointer-events:none}.orb{width:88px;height:88px;border-radius:50%;border:2px solid rgba(255,255,255,.88);box-shadow:0 0 38px rgba(142,87,255,.75),inset 0 0 25px rgba(255,65,199,.48);position:relative;animation:spin 8s linear infinite}.orb:before,.orb:after{content:"";position:absolute;border-radius:50%;border:1px solid rgba(94,234,255,.86)}.orb:before{inset:16px;transform:translateX(9px)}.orb:after{inset:25px;transform:translate(-8px,6px);border-color:rgba(255,90,191,.88)}
@@ -50,9 +56,13 @@ input[type=range]{width:100%;height:24px;accent-color:#fff;touch-action:pan-x}
 h1{font-size:42px;letter-spacing:-.05em;margin:22px 0 4px}.intro p{margin:0 0 6px;color:rgba(255,255,255,.66);font-size:14px}.intro small{margin-bottom:24px;color:rgba(255,255,255,.38);font-size:10px;letter-spacing:.08em}.enter{background:#fff;color:#050507;padding:13px 20px;font-weight:850;min-width:160px}
 .toast{position:absolute;z-index:12;left:50%;top:calc(var(--st) + 74px);transform:translateX(-50%) translateY(-8px);max-width:calc(100vw - 36px);padding:9px 13px;border-radius:999px;background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.13);-webkit-backdrop-filter:blur(15px);backdrop-filter:blur(15px);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0;transition:.22s;pointer-events:none}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .badge{position:absolute;z-index:3;left:calc(var(--sl) + 14px);bottom:calc(var(--sb) + 73px);font-size:8px;letter-spacing:.12em;color:rgba(255,255,255,.32);font-variant-numeric:tabular-nums;transition:opacity .2s}
-.airplay-tip{position:absolute;z-index:6;left:50%;bottom:calc(var(--sb) + 25px);width:min(340px,calc(100vw - 40px));transform:translate(-50%,12px);padding:13px 16px;border-radius:18px;text-align:center;font-size:11px;line-height:1.45;background:rgba(0,0,0,.58);border:1px solid rgba(255,255,255,.13);opacity:0;pointer-events:none;transition:.25s}.airplay-tip.show{opacity:1;transform:translate(-50%,0)}
+.airplay-tip{position:absolute;z-index:8;left:50%;bottom:calc(var(--sb) + clamp(22px,5vh,54px));width:min(460px,calc(100vw - 40px));transform:translate(-50%,12px);padding:13px 18px;border-radius:18px;text-align:center;font-size:11px;line-height:1.5;background:rgba(0,0,0,.62);border:1px solid rgba(255,255,255,.13);opacity:0;pointer-events:none;transition:.25s}.airplay-tip.show{opacity:1;transform:translate(-50%,0)}
+.rotate-tip{position:absolute;z-index:9;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;text-align:center;gap:7px;padding:28px;background:rgba(0,0,0,.42);pointer-events:none}.rotate-tip span{font-size:34px}.rotate-tip strong{font-size:15px}.rotate-tip small{font-size:10px;letter-spacing:.08em;color:rgba(255,255,255,.58)}
+.presenting .rotate-tip{display:flex}
 .error{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:32px;text-align:center;line-height:1.55;color:rgba(255,255,255,.78)}
 @media(min-width:700px){.ui{max-width:590px;left:50%;right:auto;width:590px;transform:translateX(-50%)}.ui.hidden{transform:translateX(-50%) translateY(10px)}}
+@media(orientation:landscape){.rotate-tip{display:none!important}.presenting .badge{left:calc(var(--sl) + clamp(18px,3vw,48px));bottom:calc(var(--sb) + clamp(16px,3vh,36px))}}
+@media(min-width:1200px){h1{font-size:clamp(42px,4vw,72px)}.intro p{font-size:clamp(14px,1.2vw,20px)}.orb{width:clamp(88px,8vw,140px);height:clamp(88px,8vw,140px)}}
 @media(max-height:660px){.top{height:48px}.sheet{bottom:calc(var(--sb) + 69px);max-height:calc(100dvh - var(--st) - var(--sb) - 128px)}.dock{padding:5px}.dock button{min-height:40px}.preset{min-height:42px}.hint{display:none}}
 @media(prefers-reduced-motion:reduce){.orb{animation-duration:18s}.intro,.ui,.toast{transition-duration:.01ms}}
 </style>
@@ -72,11 +82,11 @@ h1{font-size:42px;letter-spacing:-.05em;margin:22px 0 4px}.intro p{margin:0 0 6p
     <button class="preset" data-preset="5" style="--swatch:linear-gradient(135deg,#18224d,#8d59ff)"><span>Deep Space</span></button>
   </div>
   <div class="section-title"><span>Live controls</span><span>Tap to toggle</span></div>
-  <div class="tools"><button id="sound">◉<br>Sound</button><button id="tilt">↗<br>Tilt</button><button id="present">▣<br>AirPlay</button><button id="save">↓<br>Save</button></div>
+  <div class="tools"><button id="sound">◉<br>Sound</button><button id="tilt">↗<br>Tilt</button><button id="present">▣<br>AirPlay</button><button id="share">↗<br>Share</button><button id="save">↓<br>Save</button></div>
   <label class="control"><span>Energy</span><input id="energy" type="range" min="0.55" max="1.8" value="1.05" step="0.05"><output id="energyOut">1.05</output></label>
   <label class="control"><span>Trail</span><input id="trail" type="range" min="0.88" max="0.982" value="0.95" step="0.002"><output id="trailOut">0.950</output></label>
   <label class="control"><span>Quality</span><button id="quality">Auto</button><output id="fps">—</output></label>
-  <p class="hint">Sound creates continuous hands-free visuals and blends with every touch.<br>For AirPlay: start Screen Mirroring in iPhone Control Centre, then tap AirPlay here.</p>
+  <p class="hint">Sound creates continuous hands-free visuals and blends with every touch.<br>For TV: tap AirPlay, rotate sideways, then choose Screen Mirroring in Control Centre.</p>
 </section>
 <nav class="ui dock glass" id="dock">
   <button id="palette" aria-label="Change colour palette"><span class="ico">◐</span><span class="txt">Colour 1</span></button>
@@ -88,7 +98,8 @@ h1{font-size:42px;letter-spacing:-.05em;margin:22px 0 4px}.intro p{margin:0 0 6p
 <button class="exit-present glass" id="exitPresent">Exit presentation</button>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="badge" id="badge">LIVE VISUAL · STARTING</div>
-<div class="airplay-tip glass" id="airplayTip">Clean screen ready. On iPhone, open Control Centre and choose <strong>Screen Mirroring</strong>.</div>
+<div class="airplay-tip glass" id="airplayTip"><strong>TV mode ready.</strong> Rotate your iPhone sideways, then open Control Centre → <strong>Screen Mirroring</strong> and choose your TV.</div>
+<div class="rotate-tip" id="rotateTip"><span>↻</span><strong>Rotate your iPhone sideways</strong><small>LANDSCAPE FILLS A 16:9 TV</small></div>
 <script>
 (()=>{
 'use strict';
@@ -164,9 +175,9 @@ const autoPoints=[{prev:[.5,.5],ready:false,phase:.2},{prev:[.5,.5],ready:false,
 
 function createTarget(w,h){const texture=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,texture);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);const buffer=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,buffer);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,texture,0);if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)!==gl.FRAMEBUFFER_COMPLETE)throw new Error('Framebuffer unavailable');return[texture,buffer];}
 function currentLevel(){if(qualityMode==='auto')return autoLevel;if(qualityMode==='high')return 3;if(qualityMode==='balanced')return 1;return 0;}
-function resize(force=false){cssW=Math.max(1,innerWidth);cssH=Math.max(1,innerHeight);const level=qualityLevels[currentLevel()],dpr=Math.min(devicePixelRatio||1,2);const ratio=Math.min(dpr,level.ratio,Math.sqrt(level.mp*1000000/(cssW*cssH)));const w=Math.max(2,Math.round(cssW*ratio)),h=Math.max(2,Math.round(cssH*ratio));if(!force&&canvas.width===w&&canvas.height===h)return;canvas.width=w;canvas.height=h;canvas.style.width=cssW+'px';canvas.style.height=cssH+'px';textures.forEach(t=>gl.deleteTexture(t));buffers.forEach(b=>gl.deleteFramebuffer(b));textures=[];buffers=[];for(let i=0;i<2;i++){const target=createTarget(w,h);textures.push(target[0]);buffers.push(target[1]);gl.viewport(0,0,w,h);gl.clearColor(.008,.008,.016,1);gl.clear(gl.COLOR_BUFFER_BIT);}read=0;gl.bindFramebuffer(gl.FRAMEBUFFER,null);qualityCooldown=performance.now()+2500;updateQualityUI();}
+function resize(force=false){cssW=Math.max(1,innerWidth);cssH=Math.max(1,innerHeight);const level=qualityLevels[currentLevel()],dpr=Math.min(devicePixelRatio||1,2),tvRatio=presenting?1.18:1,tvPixels=presenting?1.25:1;const ratio=Math.min(dpr,level.ratio*tvRatio,Math.sqrt(level.mp*tvPixels*1000000/(cssW*cssH)));const w=Math.max(2,Math.round(cssW*ratio)),h=Math.max(2,Math.round(cssH*ratio));if(!force&&canvas.width===w&&canvas.height===h)return;canvas.width=w;canvas.height=h;canvas.style.width=cssW+'px';canvas.style.height=cssH+'px';textures.forEach(t=>gl.deleteTexture(t));buffers.forEach(b=>gl.deleteFramebuffer(b));textures=[];buffers=[];for(let i=0;i<2;i++){const target=createTarget(w,h);textures.push(target[0]);buffers.push(target[1]);gl.viewport(0,0,w,h);gl.clearColor(.008,.008,.016,1);gl.clear(gl.COLOR_BUFFER_BIT);}read=0;gl.bindFramebuffer(gl.FRAMEBUFFER,null);qualityCooldown=performance.now()+2500;updateQualityUI();}
 function clearFlow(){for(const buffer of buffers){gl.bindFramebuffer(gl.FRAMEBUFFER,buffer);gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(.008,.008,.016,1);gl.clear(gl.COLOR_BUFFER_BIT);}gl.bindFramebuffer(gl.FRAMEBUFFER,null);toast('Canvas cleared');}
-addEventListener('resize',()=>resize(false),{passive:true});addEventListener('orientationchange',()=>setTimeout(()=>resize(true),180),{passive:true});
+addEventListener('resize',()=>resize(false),{passive:true});window.visualViewport?.addEventListener('resize',()=>resize(false),{passive:true});addEventListener('orientationchange',()=>setTimeout(()=>resize(true),180),{passive:true});
 try{resize(true);}catch(error){console.error(error);$('intro').remove();document.body.insertAdjacentHTML('beforeend','<div class="error">PsyFlo ran out of graphics memory.<br>Close other tabs and reload Safari.</div>');return;}
 
 function pointerPosition(e){return[Math.max(0,Math.min(1,e.clientX/cssW)),Math.max(0,Math.min(1,1-e.clientY/cssH))];}
@@ -193,7 +204,7 @@ document.addEventListener('visibilitychange',()=>{running=!document.hidden;lastF
 canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();running=false;toast('Visual paused — restoring…');});canvas.addEventListener('webglcontextrestored',()=>location.reload());
 
 function adaptQuality(now){if(qualityMode!=='auto'||now<qualityCooldown)return;if(fpsSmooth<53){lowTicks++;highTicks=0;}else if(fpsSmooth>57.5){highTicks++;lowTicks=0;}else{lowTicks=0;highTicks=0;}if(lowTicks>=2&&autoLevel>0){autoLevel--;lowTicks=0;qualityCooldown=now+4500;resize(true);toast('Quality adjusted for smoothness');}else if(highTicks>=8&&autoLevel<3){autoLevel++;highTicks=0;qualityCooldown=now+8000;resize(true);toast('Quality raised');}}
-function updateFps(){$('fps').value=Math.round(fpsSmooth)+' fps';$('fps').textContent=Math.round(fpsSmooth)+' fps';$('badge').textContent=(audioStream?'SOUND AUTO':'LIVE VISUAL')+' · '+Math.round(fpsSmooth)+' FPS · '+qualityLevels[currentLevel()].name.toUpperCase();}
+function updateFps(){$('fps').value=Math.round(fpsSmooth)+' fps';$('fps').textContent=Math.round(fpsSmooth)+' fps';const state=presenting?(audioStream?'TV · SOUND AUTO':'TV MODE'):(audioStream?'SOUND AUTO':'LIVE VISUAL');$('badge').textContent=state+' · '+Math.round(fpsSmooth)+' FPS · '+qualityLevels[currentLevel()].name.toUpperCase();}
 function updateQualityUI(){const label=qualityMode==='auto'?'Auto · '+qualityLevels[autoLevel].name:qualityMode[0].toUpperCase()+qualityMode.slice(1);$('quality').textContent=label;$('qualityMark').textContent=qualityMode==='auto'?'AUTO':'LOCKED';}
 function toast(message,duration=1450){$('toast').textContent=message;$('toast').classList.add('show');clearTimeout($('toast')._timer);$('toast')._timer=setTimeout(()=>$('toast').classList.remove('show'),duration);}
 function sync(){
@@ -222,10 +233,11 @@ $('tilt').onclick=async()=>{if(tiltEnabled){removeEventListener('deviceorientati
 
 async function snapshotBlob(){const w=canvas.width,h=canvas.height,pixels=new Uint8Array(w*h*4);gl.bindFramebuffer(gl.FRAMEBUFFER,buffers[read]);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,pixels);gl.bindFramebuffer(gl.FRAMEBUFFER,null);const out=document.createElement('canvas');out.width=w;out.height=h;const ctx=out.getContext('2d'),image=ctx.createImageData(w,h),row=w*4;for(let y=0;y<h;y++)image.data.set(pixels.subarray(y*row,(y+1)*row),(h-1-y)*row);ctx.putImageData(image,0,0);return new Promise((resolve,reject)=>out.toBlob(blob=>blob?resolve(blob):reject(new Error('Image export failed')),'image/png'));}
 $('save').onclick=async()=>{try{toast('Preparing artwork…');const blob=await snapshotBlob(),file=new File([blob],'PsyFlo-'+Date.now()+'.png',{type:'image/png'});if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file],title:'PsyFlo artwork'});toast('Artwork ready');}else{const link=document.createElement('a');link.download=file.name;link.href=URL.createObjectURL(blob);link.click();setTimeout(()=>URL.revokeObjectURL(link.href),2000);toast('Artwork saved');}}catch(error){if(error?.name!=='AbortError')toast('Use an iPhone screenshot to save',2200);}};
+$('share').onclick=async()=>{const url=new URL(location.href);url.search='';url.hash='';try{if(navigator.share){await navigator.share({title:'PsyFlo — Live Visuals',text:'Open PsyFlo and turn the room into a live visual.',url:url.href});toast('PsyFlo shared');}else if(navigator.clipboard){await navigator.clipboard.writeText(url.href);toast('Public link copied');}else toast('Copy the link from Safari',2200);}catch(error){if(error?.name!=='AbortError')toast('Sharing unavailable',1800);}};
 
 async function reacquireWakeLock(){if((presenting||audioStream)&&document.visibilityState==='visible'&&navigator.wakeLock&&!wakeLock)try{wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener?.('release',()=>{wakeLock=null;});}catch{}}
 async function releaseWakeLockIfIdle(){if(presenting||audioStream)return;const lock=wakeLock;wakeLock=null;try{await lock?.release();}catch{}}
-async function enterPresentation(){presenting=true;document.body.classList.add('presenting');closeSheet();$('airplayTip').classList.add('show');setTimeout(()=>$('airplayTip').classList.remove('show'),5500);await reacquireWakeLock();try{await document.documentElement.requestFullscreen?.({navigationUI:'hide'});}catch{}try{await screen.orientation?.lock?.('landscape');}catch{}resize(true);}
+async function enterPresentation(){presenting=true;document.body.classList.add('presenting');closeSheet();$('airplayTip').classList.add('show');setTimeout(()=>$('airplayTip').classList.remove('show'),8500);await reacquireWakeLock();try{await document.documentElement.requestFullscreen?.({navigationUI:'hide'});}catch{}try{await screen.orientation?.lock?.('landscape');}catch{}resize(true);setTimeout(()=>resize(true),220);}
 async function exitPresentation(){presenting=false;document.body.classList.remove('presenting');$('airplayTip').classList.remove('show');await releaseWakeLockIfIdle();try{if(document.fullscreenElement)await document.exitFullscreen();}catch{}try{screen.orientation?.unlock?.();}catch{}resize(true);bumpIdle();}
 $('present').onclick=enterPresentation;$('exitPresent').onclick=exitPresentation;document.addEventListener('fullscreenchange',()=>{if(presenting&&!document.fullscreenElement&&document.fullscreenEnabled)exitPresentation();});
 
