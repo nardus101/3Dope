@@ -49,7 +49,7 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 input[type=range]{width:100%;height:24px;accent-color:#fff;touch-action:pan-x}
 .hint{text-align:center;margin:9px 0 1px;font-size:9px;line-height:1.4;color:rgba(255,255,255,.4)}
 .hidden{opacity:0;transform:translateY(10px);pointer-events:none}
-.reveal,.exit-present{position:absolute;z-index:7;right:calc(var(--sr) + 12px);width:44px;height:44px;border-radius:50%;display:none;font-size:10px;padding:0}.reveal{bottom:calc(var(--sb) + 10px);opacity:.14;background:rgba(0,0,0,.16);border-color:rgba(255,255,255,.05)}.reveal.show{display:block}
+.reveal,.exit-present{position:absolute;z-index:7;right:calc(var(--sr) + 8px);width:44px;height:44px;border-radius:50%;display:none;font-size:10px;padding:0}.reveal{bottom:calc(var(--sb) + 6px);display:block;opacity:.28;background:transparent;border:0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}.reveal:before{content:"";position:absolute;left:50%;top:50%;width:5px;height:5px;border-radius:50%;transform:translate(-50%,-50%);background:rgba(255,255,255,.48);box-shadow:0 0 6px rgba(135,92,255,.42);transition:width .18s ease,height .18s ease,opacity .18s ease,box-shadow .18s ease}.reveal.show{opacity:.52}.reveal.show:before{width:6px;height:6px;background:rgba(255,255,255,.72);box-shadow:0 0 8px rgba(94,234,255,.5)}.reveal:focus-visible{outline:0}.reveal:active{background:transparent}.reveal:active:before{width:9px;height:9px}
 .exit-present{top:calc(var(--st) + clamp(9px,2vh,22px));right:calc(var(--sr) + clamp(10px,2vw,28px));font-size:8px;width:auto;height:34px;min-height:34px;padding:0 10px;border-radius:999px;background:rgba(0,0,0,.24);opacity:.16}
 .exit-present:active,.exit-present:focus-visible{opacity:1}
 .presenting .exit-present{display:block}.presenting .ui,.presenting .reveal{display:none!important}
@@ -102,7 +102,7 @@ h1{font-size:42px;letter-spacing:-.05em;margin:22px 0 4px}.intro p{margin:0 0 6p
   <button id="clear" aria-label="Clear the visual"><span class="ico">×</span><span class="txt">Clear</span></button>
   <button id="more" aria-expanded="false"><span class="ico">•••</span><span class="txt">Controls</span></button>
 </nav>
-<button class="reveal glass" id="reveal" aria-label="Show controls">✦</button>
+<button class="reveal" id="reveal" aria-label="Hide controls" aria-pressed="false"></button>
 <button class="exit-present glass" id="exitPresent">Exit presentation</button>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="airplay-tip glass" id="airplayTip" role="status">
@@ -332,9 +332,9 @@ async function exitPresentation(fromNative=false){presenting=false;document.body
 $('present').onclick=()=>{if(isIOS&&isSafari&&!isStandalone()){closeSheet();showInstallGuide('fullscreen');return;}enterPresentation();};$('exitPresent').onclick=()=>exitPresentation(false);$('tvReady').onclick=launchTvFullscreen;tvVideo.addEventListener('webkitbeginfullscreen',()=>{nativeVideoFullscreen=true;$('airplayTip').classList.remove('show');$('tvScreenState').textContent='VIDEO FULLSCREEN ACTIVE';});tvVideo.addEventListener('webkitendfullscreen',()=>{if(presenting)exitPresentation(true);});document.addEventListener('fullscreenchange',()=>{if(presenting&&!document.fullscreenElement&&document.fullscreenEnabled)exitPresentation(false);});
 
 let uiVisible=true,idleTimer;
-function setUi(visible){uiVisible=visible;['top','dock','sheet'].forEach(id=>$(id).classList.toggle('hidden',!visible));$('reveal').classList.toggle('show',!visible);if(!visible)closeSheet();}
+function setUi(visible){uiVisible=visible;['top','dock','sheet'].forEach(id=>$(id).classList.toggle('hidden',!visible));$('reveal').classList.toggle('show',!visible);$('reveal').setAttribute('aria-label',visible?'Hide controls':'Show controls');$('reveal').setAttribute('aria-pressed',String(!visible));if(!visible)closeSheet();}
 function bumpIdle(){clearTimeout(idleTimer);if(!uiVisible||presenting)return;idleTimer=setTimeout(()=>{if(!$('sheet').classList.contains('open')&&pointers.size===0)setUi(false);},3500);}
-$('reveal').onclick=()=>{setUi(true);bumpIdle();};['pointerdown','click','input'].forEach(event=>document.addEventListener(event,bumpIdle,{passive:true}));
+$('reveal').onclick=event=>{event.stopPropagation();const visible=!uiVisible;setUi(visible);if(visible)bumpIdle();else clearTimeout(idleTimer);};['pointerdown','click','input'].forEach(event=>document.addEventListener(event,bumpIdle,{passive:true}));
 selectPreset(0,false);sync();bumpIdle();
 })();
 </script>
