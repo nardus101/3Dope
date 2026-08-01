@@ -62,7 +62,7 @@ h1{font-size:42px;letter-spacing:-.05em;margin:22px 0 4px}.intro p{margin:0 0 6p
 .airplay-tip{position:absolute;z-index:8;left:50%;bottom:calc(var(--sb) + clamp(22px,5vh,54px));width:min(480px,calc(100vw - 36px));transform:translate(-50%,12px);padding:15px 17px;border-radius:20px;text-align:left;font-size:11px;line-height:1.45;background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.14);opacity:0;pointer-events:none;transition:.25s}.airplay-tip.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}.airplay-tip strong{display:block;margin-bottom:6px;font-size:13px}.airplay-tip span{display:block;color:rgba(255,255,255,.76)}.airplay-tip small{display:block;margin-top:7px;color:var(--cyan);font-size:9px;letter-spacing:.05em}.airplay-tip button{width:100%;margin-top:10px;min-height:38px;padding:7px;background:rgba(255,255,255,.13)}
 .rotate-tip{position:absolute;z-index:9;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;text-align:center;gap:7px;padding:28px;background:rgba(0,0,0,.88);pointer-events:auto}.rotate-tip span{font-size:34px}.rotate-tip strong{font-size:15px}.rotate-tip small{font-size:10px;letter-spacing:.08em;color:rgba(255,255,255,.58)}
 .app-ready .rotate-tip{display:flex}
-.tv-video{position:fixed;right:0;bottom:0;width:2px;height:2px;opacity:.001;pointer-events:none;background:#000;object-fit:contain}
+.tv-output,.tv-video{position:fixed;right:0;bottom:0;left:auto;top:auto;width:2px;height:2px;opacity:.001;pointer-events:none;background:#000}.tv-video{object-fit:cover}
 .error{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:32px;text-align:center;line-height:1.55;color:rgba(255,255,255,.78)}
 @media(min-width:700px){.ui{max-width:590px;left:50%;right:auto;width:590px;transform:translateX(-50%)}.ui.hidden{transform:translateX(-50%) translateY(10px)}}
 @media(orientation:landscape){.rotate-tip{display:none!important}}
@@ -74,6 +74,7 @@ h1{font-size:42px;letter-spacing:-.05em;margin:22px 0 4px}.intro p{margin:0 0 6p
 </head>
 <body>
 <canvas id="gl" aria-label="Interactive PsyFlo visual canvas"></canvas>
+<canvas class="tv-output" id="tvOutput" width="1280" height="720" aria-hidden="true"></canvas>
 <video class="tv-video" id="tvVideo" muted autoplay playsinline webkit-playsinline aria-hidden="true"></video>
 <div class="intro" id="intro"><div class="orb" aria-hidden="true"></div><h1>PsyFlo</h1><p>Touch the light. Move the room.</p><small>LANDSCAPE TV CONTROLLER · SOUND AUTO-START</small><button class="enter" id="enter">Enter the Flow</button><button class="install" id="installIntro">＋ Install on phone</button></div>
 <header class="ui top glass" id="top"><button id="mode" aria-label="Change visual style">Liquid</button><div class="brand"><strong>PSYFLO</strong><small id="qualityMark">AUTO</small></div><button class="trip" id="trip">TRIP</button></header>
@@ -92,7 +93,7 @@ h1{font-size:42px;letter-spacing:-.05em;margin:22px 0 4px}.intro p{margin:0 0 6p
   <label class="control"><span>Energy</span><input id="energy" type="range" min="0.55" max="1.8" value="1.05" step="0.05"><output id="energyOut">1.05</output></label>
   <label class="control"><span>Trail</span><input id="trail" type="range" min="0.88" max="0.982" value="0.947" step="0.001"><output id="trailOut">0.947</output></label>
   <label class="control"><span>Quality</span><button id="quality">Auto</button><output id="fps">—</output></label>
-  <p class="hint">Sound creates continuous hands-free visuals and blends with every touch.<br>Landscape is automatic. Flip rotates the TV output 180°.</p>
+  <p class="hint">Sound creates continuous hands-free visuals and blends with every touch.<br>TV Fullscreen uses a 16:9 fill crop. Flip rotates the output 180°.</p>
 </section>
 <nav class="ui dock glass" id="dock">
   <button id="palette" aria-label="Change colour palette"><span class="ico">◐</span><span class="txt">Colour 1</span></button>
@@ -105,10 +106,10 @@ h1{font-size:42px;letter-spacing:-.05em;margin:22px 0 4px}.intro p{margin:0 0 6p
 <button class="exit-present glass" id="exitPresent">Exit presentation</button>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="airplay-tip glass" id="airplayTip" role="status">
-  <strong>TV presentation is ready</strong>
-  <span><b>AirPlay:</b> use the same Wi-Fi, then Control Centre → Screen Mirroring → choose your TV.</span>
+  <strong>16:9 TV Fill is ready</strong>
+  <span><b>AirPlay Fill:</b> enter Video Fullscreen first, then Control Centre → Screen Mirroring → choose your TV.</span>
   <span><b>HDMI:</b> connect an Apple Lightning Digital AV Adapter and HDMI cable.</span>
-  <small id="tvScreenState">PREPARING VIDEO FULLSCREEN…</small>
+  <small id="tvScreenState">PREPARING 16:9 VIDEO FULLSCREEN…</small>
   <button id="tvReady">Enter video fullscreen</button>
 </div>
 <div class="rotate-tip" id="rotateTip"><span>↻</span><strong>Turn the controller sideways</strong><small>PSYFLO RUNS IN LANDSCAPE FOR TV</small></div>
@@ -127,6 +128,7 @@ h1{font-size:42px;letter-spacing:-.05em;margin:22px 0 4px}.intro p{margin:0 0 6p
 'use strict';
 const canvas=document.getElementById('gl');
 const $=id=>document.getElementById(id);
+const tvOutput=$('tvOutput'),tvOutputContext=tvOutput.getContext('2d',{alpha:false,desynchronized:true});
 let deferredInstallPrompt=null;
 const isStandalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
 const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -203,7 +205,7 @@ const DU={u_tex:gl.getUniformLocation(displayProgram,'u_tex'),u_time:gl.getUnifo
 let cssW=innerWidth,cssH=innerHeight,textures=[],buffers=[],read=0;
 let style=0,palette=0,symmetry=1,energy=1.05,trail=.947,audio=0,audioBass=0,audioMid=0,audioHigh=0,beatPulse=0,tilt=[0,0],flipped=false;
 let qualityMode='auto',autoLevel=2,fpsSmooth=60,qualityCooldown=0,lowTicks=0,highTicks=0;
-let audioContext,analyser,audioData,audioStream,audioLoop=0,audioFloor=.025,lastBass=0,lastBeat=0,wakeLock=null,presenting=false,tvCanvasStream=null,nativeVideoFullscreen=false;
+let audioContext,analyser,audioData,audioStream,audioLoop=0,audioFloor=.025,lastBass=0,lastBeat=0,wakeLock=null,presenting=false,tvCanvasStream=null,nativeVideoFullscreen=false,lastTvFrame=0;
 const qualityLevels=[{name:'Eco',ratio:.78,mp:.42},{name:'Balanced',ratio:1.0,mp:.64},{name:'High',ratio:1.2,mp:.86},{name:'Ultra',ratio:1.38,mp:1.08}];
 const styleNames=['Liquid','Neon','Particles','Bloom'],symmetryNames={1:'Free',2:'Mirror 2',4:'Mirror 4',8:'Kaleido 8'};
 const presets=[
@@ -231,6 +233,7 @@ canvas.addEventListener('pointermove',e=>{const item=pointers.get(e.pointerId);i
 function releasePointer(e){pointers.delete(e.pointerId);}canvas.addEventListener('pointerup',releasePointer);canvas.addEventListener('pointercancel',releasePointer);canvas.addEventListener('lostpointercapture',releasePointer);
 
 let lastFrame=performance.now(),fpsFrames=0,fpsStarted=lastFrame,running=true;
+function renderTvOutput(now,force=false){if(!tvOutputContext||(!force&&(!tvCanvasStream||now-lastTvFrame<32)))return;lastTvFrame=now;const sourceWidth=canvas.width,sourceHeight=canvas.height,targetRatio=16/9;let sx=0,sy=0,sw=sourceWidth,sh=sourceHeight;if(sourceWidth/sourceHeight>targetRatio){sw=sourceHeight*targetRatio;sx=(sourceWidth-sw)/2;}else{sh=sourceWidth/targetRatio;sy=(sourceHeight-sh)/2;}tvOutputContext.drawImage(canvas,sx,sy,sw,sh,0,0,tvOutput.width,tvOutput.height);}
 function render(now){
  if(!running){requestAnimationFrame(render);return;}
  const dt=Math.min(.05,Math.max(.001,(now-lastFrame)/1000));lastFrame=now;
@@ -239,7 +242,7 @@ function render(now){
  if(audioStream&&count<5){const seconds=now*.001,actors=Math.min(symmetry>=4?1:2,5-count);for(let i=0;i<actors;i++){const actor=autoPoints[i],phase=actor.phase,radiusX=.17+audioBass*.18,radiusY=.19+audioMid*.14;const angle=seconds*(.4+audioMid*.72+audioBass*.34)+phase;const px=Math.max(.08,Math.min(.92,.5+Math.sin(angle*1.37+Math.sin(seconds*.23+phase))*radiusX+Math.sin(seconds*(1.8+audioHigh*1.4)+phase)*audioHigh*.045)),py=Math.max(.08,Math.min(.92,.5+Math.sin(angle*.91+phase*1.72)*radiusY));if(!actor.ready){actor.prev[0]=px;actor.prev[1]=py;actor.ready=true;}const j=count*2;pointData[j]=px;pointData[j+1]=py;prevPointData[j]=actor.prev[0];prevPointData[j+1]=actor.prev[1];pressureData[count]=Math.min(1.1,.055+audio*.55+audioBass*1.12+beatPulse*.38);actor.prev[0]+=(px-actor.prev[0])*.54;actor.prev[1]+=(py-actor.prev[1])*.54;count++;}}
  beatPulse*=Math.pow(.08,dt);
  const write=1-read;bindQuad(flowProgram);gl.bindFramebuffer(gl.FRAMEBUFFER,buffers[write]);gl.viewport(0,0,canvas.width,canvas.height);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,textures[read]);gl.uniform1i(U.u_prev,0);gl.uniform2f(U.u_res,canvas.width,canvas.height);gl.uniform1f(U.u_time,now*.001);gl.uniform1f(U.u_energy,energy);gl.uniform1f(U.u_decay,Math.pow(trail,dt*60));gl.uniform1f(U.u_audio,audio);gl.uniform1f(U.u_bass,audioBass);gl.uniform1f(U.u_high,audioHigh);gl.uniform1f(U.u_beat,beatPulse);gl.uniform2f(U.u_tilt,tilt[0],tilt[1]);gl.uniform1i(U.u_style,style);gl.uniform1i(U.u_palette,palette);gl.uniform1i(U.u_sym,symmetry);gl.uniform1i(U.u_count,count);gl.uniform2fv(U.u_pts,pointData);gl.uniform2fv(U.u_prevPts,prevPointData);gl.uniform1fv(U.u_press,pressureData);gl.drawArrays(gl.TRIANGLES,0,6);
- bindQuad(displayProgram);gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,canvas.width,canvas.height);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,textures[write]);gl.uniform1i(DU.u_tex,0);gl.uniform1f(DU.u_time,now*.001);gl.uniform1f(DU.u_flip,flipped?1:0);gl.drawArrays(gl.TRIANGLES,0,6);read=write;
+ bindQuad(displayProgram);gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,canvas.width,canvas.height);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,textures[write]);gl.uniform1i(DU.u_tex,0);gl.uniform1f(DU.u_time,now*.001);gl.uniform1f(DU.u_flip,flipped?1:0);gl.drawArrays(gl.TRIANGLES,0,6);read=write;renderTvOutput(now);
  fpsFrames++;if(now-fpsStarted>=1000){const measured=fpsFrames*1000/(now-fpsStarted);fpsSmooth=fpsSmooth*.6+measured*.4;fpsFrames=0;fpsStarted=now;updateFps();adaptQuality(now);}
  requestAnimationFrame(render);
 }
@@ -284,10 +287,10 @@ async function releaseWakeLockIfIdle(){if(presenting||audioStream)return;const l
 let tvTipTimer;
 const tvVideo=$('tvVideo');
 function prepareVideoFullscreen(){
- if(!canvas.captureStream)return false;
- if(!tvCanvasStream){tvCanvasStream=canvas.captureStream(60);tvVideo.srcObject=tvCanvasStream;tvVideo.muted=true;tvVideo.controls=false;tvVideo.disablePictureInPicture=true;tvVideo.webkitWirelessVideoPlaybackDisabled=true;tvVideo.play().catch(()=>{});}
+ if(!tvOutput.captureStream)return false;
+ if(!tvCanvasStream){renderTvOutput(performance.now(),true);tvCanvasStream=tvOutput.captureStream(30);tvVideo.srcObject=tvCanvasStream;tvVideo.muted=true;tvVideo.controls=false;tvVideo.disablePictureInPicture=true;tvVideo.webkitWirelessVideoPlaybackDisabled=true;tvVideo.play().catch(()=>{});}
  const supported=typeof tvVideo.webkitEnterFullscreen==='function';
- $('tvScreenState').textContent=supported?'VIDEO FULLSCREEN READY':'STANDARD FULLSCREEN READY';
+ $('tvScreenState').textContent=supported?'16:9 TV FILL READY':'16:9 STANDARD FULLSCREEN READY';
  return supported;
 }
 function launchTvFullscreen(){
@@ -297,7 +300,7 @@ function launchTvFullscreen(){
  if(prepareVideoFullscreen()){try{tvVideo.play().catch(()=>{});tvVideo.webkitEnterFullscreen();return;}catch{}}
  $('tvScreenState').textContent=isStandalone()?'HOME SCREEN FULLSCREEN ACTIVE':'FULLSCREEN BLOCKED · INSTALL PSYFLO FROM SAFARI';
 }
-function stopVideoFullscreen(){if(nativeVideoFullscreen)try{tvVideo.webkitExitFullscreen?.();}catch{}nativeVideoFullscreen=false;tvCanvasStream?.getTracks().forEach(track=>track.stop());tvCanvasStream=null;tvVideo.srcObject=null;}
+function stopVideoFullscreen(){if(nativeVideoFullscreen)try{tvVideo.webkitExitFullscreen?.();}catch{}nativeVideoFullscreen=false;tvCanvasStream?.getTracks().forEach(track=>track.stop());tvCanvasStream=null;tvVideo.srcObject=null;lastTvFrame=0;}
 async function enterPresentation(){
  presenting=true;document.body.classList.add('presenting');closeSheet();closeInstallGuide();$('present').classList.add('on');$('present').innerHTML='▣<br>TV On';$('airplayTip').classList.add('show');clearTimeout(tvTipTimer);
  prepareVideoFullscreen();let fullscreenRequest=null,orientationRequest=null;
@@ -307,7 +310,7 @@ async function enterPresentation(){
  const full=document.fullscreenElement?'BROWSER FULLSCREEN ACTIVE · TAP BELOW TO CONTINUE':typeof tvVideo.webkitEnterFullscreen==='function'?'TAP BELOW FOR VIDEO FULLSCREEN':isStandalone()?'HOME SCREEN FULLSCREEN ACTIVE':'SAFARI TV VIEW';$('tvScreenState').textContent=full;$('tvReady').textContent=document.fullscreenElement?'Continue to Screen Mirroring':'Enter video fullscreen';
  resize(true);setTimeout(()=>resize(true),220);
 }
-async function exitPresentation(fromNative=false){presenting=false;document.body.classList.remove('presenting');$('present').classList.remove('on');$('present').innerHTML='▣<br>AirPlay';$('airplayTip').classList.remove('show');clearTimeout(tvTipTimer);if(!fromNative)stopVideoFullscreen();else{nativeVideoFullscreen=false;tvCanvasStream?.getTracks().forEach(track=>track.stop());tvCanvasStream=null;tvVideo.srcObject=null;}await releaseWakeLockIfIdle();try{if(document.fullscreenElement)await document.exitFullscreen();}catch{}try{screen.orientation?.unlock?.();}catch{}resize(true);bumpIdle();}
+async function exitPresentation(fromNative=false){presenting=false;document.body.classList.remove('presenting');$('present').classList.remove('on');$('present').innerHTML='▣<br>AirPlay';$('airplayTip').classList.remove('show');clearTimeout(tvTipTimer);if(!fromNative)stopVideoFullscreen();else{nativeVideoFullscreen=false;tvCanvasStream?.getTracks().forEach(track=>track.stop());tvCanvasStream=null;tvVideo.srcObject=null;lastTvFrame=0;}await releaseWakeLockIfIdle();try{if(document.fullscreenElement)await document.exitFullscreen();}catch{}try{screen.orientation?.unlock?.();}catch{}resize(true);bumpIdle();}
 $('present').onclick=enterPresentation;$('exitPresent').onclick=()=>exitPresentation(false);$('tvReady').onclick=launchTvFullscreen;tvVideo.addEventListener('webkitbeginfullscreen',()=>{nativeVideoFullscreen=true;$('airplayTip').classList.remove('show');$('tvScreenState').textContent='VIDEO FULLSCREEN ACTIVE';});tvVideo.addEventListener('webkitendfullscreen',()=>{if(presenting)exitPresentation(true);});document.addEventListener('fullscreenchange',()=>{if(presenting&&!document.fullscreenElement&&document.fullscreenEnabled)exitPresentation(false);});
 
 let uiVisible=true,idleTimer;
