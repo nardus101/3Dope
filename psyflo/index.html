@@ -76,7 +76,7 @@ h1{font-size:42px;letter-spacing:-.05em;margin:22px 0 4px}.intro p{margin:0 0 6p
   <label class="control"><span>Energy</span><input id="energy" type="range" min="0.55" max="1.8" value="1.05" step="0.05"><output id="energyOut">1.05</output></label>
   <label class="control"><span>Trail</span><input id="trail" type="range" min="0.88" max="0.982" value="0.95" step="0.002"><output id="trailOut">0.950</output></label>
   <label class="control"><span>Quality</span><button id="quality">Auto</button><output id="fps">—</output></label>
-  <p class="hint">For AirPlay: start Screen Mirroring in iPhone Control Centre, then tap AirPlay here for a clean presentation.</p>
+  <p class="hint">Sound creates continuous hands-free visuals and blends with every touch.<br>For AirPlay: start Screen Mirroring in iPhone Control Centre, then tap AirPlay here.</p>
 </section>
 <nav class="ui dock glass" id="dock">
   <button id="palette" aria-label="Change colour palette"><span class="ico">◐</span><span class="txt">Colour 1</span></button>
@@ -123,7 +123,7 @@ void main(){
  float n=noise(p*3.5+vec2(t*.055,-t*.04));vec2 warp=.0022*u_energy*vec2(sin(p.y*7.5+t+n*2.7),cos(p.x*6.8-t+n*2.2));warp+=u_tilt*.000055;
  vec3 prev=texture2D(u_prev,clamp(uv+warp,vec2(.002),vec2(.998))).rgb*u_decay;vec3 add=vec3(0.0);
  for(int i=0;i<5;i++){if(i<u_count){
-  vec2 q0=(u_pts[i]-.5)*asp,r0=(u_prevPts[i]-.5)*asp;float pr=max(.34,u_press[i]);float e=u_energy*(1.0+u_audio*1.45);
+  vec2 q0=(u_pts[i]-.5)*asp,r0=(u_prevPts[i]-.5)*asp;float pr=max(.045,u_press[i]);float e=u_energy*(1.0+u_audio*1.45);
   for(int k=0;k<8;k++){if(k<u_sym){
    vec2 q=symmetryPoint(q0,k),r=symmetryPoint(r0,k);float d=seg(p,r,q),radial=length(p-q);vec3 ink=pal(t*.035+radial*1.65+float(i)*.17+float(k)*.035);
    if(u_style==0){float core=exp(-d*(92.0/e))*1.5;float wave=exp(-radial*10.0)*(.5+.5*sin(radial*88.0-t*6.0));add+=ink*(core+wave*.20)*pr;}
@@ -146,8 +146,9 @@ const U={};['u_prev','u_res','u_time','u_energy','u_decay','u_audio','u_tilt','u
 const DU={u_tex:gl.getUniformLocation(displayProgram,'u_tex'),u_time:gl.getUniformLocation(displayProgram,'u_time')};
 
 let cssW=innerWidth,cssH=innerHeight,textures=[],buffers=[],read=0;
-let style=0,palette=0,symmetry=1,energy=1.05,trail=.95,audio=0,tilt=[0,0];
+let style=0,palette=0,symmetry=1,energy=1.05,trail=.95,audio=0,audioBass=0,audioHigh=0,beatPulse=0,tilt=[0,0];
 let qualityMode='auto',autoLevel=2,fpsSmooth=60,qualityCooldown=0,lowTicks=0,highTicks=0;
+let audioContext,analyser,audioData,audioStream,audioLoop=0,audioFloor=.04,lastBeat=0,wakeLock=null,presenting=false;
 const qualityLevels=[{name:'Eco',ratio:.78,mp:.42},{name:'Balanced',ratio:1.0,mp:.64},{name:'High',ratio:1.2,mp:.86},{name:'Ultra',ratio:1.38,mp:1.08}];
 const styleNames=['Liquid','Neon','Particles','Bloom'],symmetryNames={1:'Free',2:'Mirror 2',4:'Mirror 4',8:'Kaleido 8'};
 const presets=[
@@ -159,6 +160,7 @@ const presets=[
  {name:'Deep Space',style:2,palette:5,sym:1,energy:.82,trail:.968}
 ];
 const pointers=new Map(),pointData=new Float32Array(10),prevPointData=new Float32Array(10),pressureData=new Float32Array(5);
+const autoPoints=[{prev:[.5,.5],ready:false,phase:.2},{prev:[.5,.5],ready:false,phase:3.35}];
 
 function createTarget(w,h){const texture=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,texture);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);const buffer=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,buffer);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,texture,0);if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)!==gl.FRAMEBUFFER_COMPLETE)throw new Error('Framebuffer unavailable');return[texture,buffer];}
 function currentLevel(){if(qualityMode==='auto')return autoLevel;if(qualityMode==='high')return 3;if(qualityMode==='balanced')return 1;return 0;}
@@ -179,17 +181,19 @@ function render(now){
  const dt=Math.min(.05,Math.max(.001,(now-lastFrame)/1000));lastFrame=now;
  pointData.fill(0);prevPointData.fill(0);pressureData.fill(0);let count=0;
  for(const item of pointers.values()){if(count>=5)break;const j=count*2;pointData[j]=item.p[0];pointData[j+1]=item.p[1];prevPointData[j]=item.prev[0];prevPointData[j+1]=item.prev[1];pressureData[count]=item.pressure;item.prev[0]+=(item.p[0]-item.prev[0])*.72;item.prev[1]+=(item.p[1]-item.prev[1])*.72;count++;}
+ if(audioStream&&count<5){const seconds=now*.001,actors=Math.min(symmetry>=4?1:2,5-count);for(let i=0;i<actors;i++){const actor=autoPoints[i],phase=actor.phase,radiusX=.18+audioBass*.15,radiusY=.21+audio*.12;const angle=seconds*(.46+audioBass*.58)+phase;const px=Math.max(.08,Math.min(.92,.5+Math.sin(angle*1.37+Math.sin(seconds*.23+phase))*radiusX+Math.sin(seconds*2.1+phase)*audioHigh*.035)),py=Math.max(.08,Math.min(.92,.5+Math.sin(angle*.91+phase*1.72)*radiusY));if(!actor.ready){actor.prev[0]=px;actor.prev[1]=py;actor.ready=true;}const j=count*2;pointData[j]=px;pointData[j+1]=py;prevPointData[j]=actor.prev[0];prevPointData[j+1]=actor.prev[1];pressureData[count]=Math.min(1.1,.045+audio*.72+audioBass*1.28+beatPulse*.3);actor.prev[0]+=(px-actor.prev[0])*.54;actor.prev[1]+=(py-actor.prev[1])*.54;count++;}}
+ beatPulse*=Math.pow(.08,dt);
  const write=1-read;bindQuad(flowProgram);gl.bindFramebuffer(gl.FRAMEBUFFER,buffers[write]);gl.viewport(0,0,canvas.width,canvas.height);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,textures[read]);gl.uniform1i(U.u_prev,0);gl.uniform2f(U.u_res,canvas.width,canvas.height);gl.uniform1f(U.u_time,now*.001);gl.uniform1f(U.u_energy,energy);gl.uniform1f(U.u_decay,Math.pow(trail,dt*60));gl.uniform1f(U.u_audio,audio);gl.uniform2f(U.u_tilt,tilt[0],tilt[1]);gl.uniform1i(U.u_style,style);gl.uniform1i(U.u_palette,palette);gl.uniform1i(U.u_sym,symmetry);gl.uniform1i(U.u_count,count);gl.uniform2fv(U.u_pts,pointData);gl.uniform2fv(U.u_prevPts,prevPointData);gl.uniform1fv(U.u_press,pressureData);gl.drawArrays(gl.TRIANGLES,0,6);
  bindQuad(displayProgram);gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,canvas.width,canvas.height);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,textures[write]);gl.uniform1i(DU.u_tex,0);gl.uniform1f(DU.u_time,now*.001);gl.drawArrays(gl.TRIANGLES,0,6);read=write;
  fpsFrames++;if(now-fpsStarted>=1000){const measured=fpsFrames*1000/(now-fpsStarted);fpsSmooth=fpsSmooth*.6+measured*.4;fpsFrames=0;fpsStarted=now;updateFps();adaptQuality(now);}
  requestAnimationFrame(render);
 }
 requestAnimationFrame(render);
-document.addEventListener('visibilitychange',()=>{running=!document.hidden;lastFrame=performance.now();fpsFrames=0;fpsStarted=lastFrame;if(running)reacquireWakeLock();});
+document.addEventListener('visibilitychange',()=>{running=!document.hidden;lastFrame=performance.now();fpsFrames=0;fpsStarted=lastFrame;if(running){reacquireWakeLock();if(audioStream&&audioContext?.state==='suspended')audioContext.resume().catch(()=>{});}});
 canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();running=false;toast('Visual paused — restoring…');});canvas.addEventListener('webglcontextrestored',()=>location.reload());
 
 function adaptQuality(now){if(qualityMode!=='auto'||now<qualityCooldown)return;if(fpsSmooth<53){lowTicks++;highTicks=0;}else if(fpsSmooth>57.5){highTicks++;lowTicks=0;}else{lowTicks=0;highTicks=0;}if(lowTicks>=2&&autoLevel>0){autoLevel--;lowTicks=0;qualityCooldown=now+4500;resize(true);toast('Quality adjusted for smoothness');}else if(highTicks>=8&&autoLevel<3){autoLevel++;highTicks=0;qualityCooldown=now+8000;resize(true);toast('Quality raised');}}
-function updateFps(){$('fps').value=Math.round(fpsSmooth)+' fps';$('fps').textContent=Math.round(fpsSmooth)+' fps';$('badge').textContent='LIVE VISUAL · '+Math.round(fpsSmooth)+' FPS · '+qualityLevels[currentLevel()].name.toUpperCase();}
+function updateFps(){$('fps').value=Math.round(fpsSmooth)+' fps';$('fps').textContent=Math.round(fpsSmooth)+' fps';$('badge').textContent=(audioStream?'SOUND AUTO':'LIVE VISUAL')+' · '+Math.round(fpsSmooth)+' FPS · '+qualityLevels[currentLevel()].name.toUpperCase();}
 function updateQualityUI(){const label=qualityMode==='auto'?'Auto · '+qualityLevels[autoLevel].name:qualityMode[0].toUpperCase()+qualityMode.slice(1);$('quality').textContent=label;$('qualityMark').textContent=qualityMode==='auto'?'AUTO':'LOCKED';}
 function toast(message,duration=1450){$('toast').textContent=message;$('toast').classList.add('show');clearTimeout($('toast')._timer);$('toast')._timer=setTimeout(()=>$('toast').classList.remove('show'),duration);}
 function sync(){
@@ -210,9 +214,8 @@ $('energy').oninput=e=>{energy=Number(e.target.value);$('energyOut').value=energ
 $('trail').oninput=e=>{trail=Number(e.target.value);$('trailOut').value=trail.toFixed(3);$('trailOut').textContent=trail.toFixed(3);};
 $('quality').onclick=()=>{qualityMode=qualityMode==='auto'?'high':qualityMode==='high'?'balanced':qualityMode==='balanced'?'eco':'auto';lowTicks=highTicks=0;resize(true);toast('Quality: '+$('quality').textContent);};
 
-let audioContext,analyser,audioData,audioStream,audioLoop=0;
-function stopSound(){cancelAnimationFrame(audioLoop);audioLoop=0;audio=0;audioStream?.getTracks().forEach(track=>track.stop());audioStream=null;audioContext?.close();audioContext=null;$('sound').classList.remove('on');$('sound').innerHTML='◉<br>Sound';toast('Sound off');}
-$('sound').onclick=async()=>{if(audioStream){stopSound();return;}try{audioStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});audioContext=new(window.AudioContext||window.webkitAudioContext)();await audioContext.resume();const source=audioContext.createMediaStreamSource(audioStream);analyser=audioContext.createAnalyser();analyser.fftSize=128;analyser.smoothingTimeConstant=.72;source.connect(analyser);audioData=new Uint8Array(analyser.frequencyBinCount);const listen=()=>{analyser.getByteFrequencyData(audioData);let sum=0;const bins=Math.min(28,audioData.length);for(let i=1;i<bins;i++)sum+=audioData[i];const level=sum/(bins*255);audio+=(level-audio)*.16;audioLoop=requestAnimationFrame(listen);};listen();$('sound').classList.add('on');$('sound').innerHTML='◉<br>Sound On';toast('Sound reactive');}catch(error){console.warn(error);audioStream=null;toast('Allow microphone access in Safari settings',2400);}};
+function stopSound(){cancelAnimationFrame(audioLoop);audioLoop=0;audio=audioBass=audioHigh=beatPulse=0;const stream=audioStream;audioStream=null;stream?.getTracks().forEach(track=>track.stop());audioContext?.close();audioContext=null;autoPoints.forEach(actor=>actor.ready=false);$('sound').classList.remove('on');$('sound').innerHTML='◉<br>Sound';releaseWakeLockIfIdle();toast('Hands-free sound off');}
+$('sound').onclick=async()=>{if(audioStream){stopSound();return;}try{audioStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});const liveStream=audioStream;liveStream.getAudioTracks()[0]?.addEventListener('ended',()=>{if(audioStream===liveStream)stopSound();},{once:true});audioContext=new(window.AudioContext||window.webkitAudioContext)();await audioContext.resume();const source=audioContext.createMediaStreamSource(audioStream);analyser=audioContext.createAnalyser();analyser.fftSize=128;analyser.smoothingTimeConstant=.68;source.connect(analyser);audioData=new Uint8Array(analyser.frequencyBinCount);audioFloor=.04;lastBeat=0;autoPoints.forEach(actor=>actor.ready=false);const listen=()=>{analyser.getByteFrequencyData(audioData);const bins=Math.min(28,audioData.length),bassBins=Math.min(8,bins);let sum=0,bassSum=0,highSum=0;for(let i=1;i<bins;i++){sum+=audioData[i];if(i<bassBins)bassSum+=audioData[i];if(i>=12)highSum+=audioData[i];}const level=sum/(Math.max(1,bins-1)*255),bass=bassSum/(Math.max(1,bassBins-1)*255),high=highSum/(Math.max(1,bins-12)*255);audio+=(level-audio)*.16;audioBass+=(bass-audioBass)*.2;audioHigh+=(high-audioHigh)*.14;audioFloor+=(bass-audioFloor)*.015;const stamp=performance.now();if(bass>Math.max(.075,audioFloor*1.38)&&stamp-lastBeat>190){beatPulse=1;lastBeat=stamp;}audioLoop=requestAnimationFrame(listen);};listen();$('sound').classList.add('on');$('sound').innerHTML='◉<br>Sound Auto';await reacquireWakeLock();toast('Hands-free sound visuals active',2300);}catch(error){console.warn(error);const stream=audioStream;audioStream=null;stream?.getTracks().forEach(track=>track.stop());audioContext?.close();audioContext=null;toast('Allow microphone access in Safari settings',2400);}};
 let tiltEnabled=false;
 function onOrientation(e){tilt[0]=Math.max(-20,Math.min(20,e.gamma||0));tilt[1]=Math.max(-20,Math.min(20,(e.beta||45)-45));}
 $('tilt').onclick=async()=>{if(tiltEnabled){removeEventListener('deviceorientation',onOrientation);tiltEnabled=false;tilt=[0,0];$('tilt').classList.remove('on');$('tilt').innerHTML='↗<br>Tilt';toast('Tilt off');return;}try{if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'&&await DeviceOrientationEvent.requestPermission()!=='granted')throw new Error('denied');addEventListener('deviceorientation',onOrientation,{passive:true});tiltEnabled=true;$('tilt').classList.add('on');$('tilt').innerHTML='↗<br>Tilt On';toast('Tilt reactive');}catch{toast('Allow motion access to use Tilt',2200);}};
@@ -220,10 +223,10 @@ $('tilt').onclick=async()=>{if(tiltEnabled){removeEventListener('deviceorientati
 async function snapshotBlob(){const w=canvas.width,h=canvas.height,pixels=new Uint8Array(w*h*4);gl.bindFramebuffer(gl.FRAMEBUFFER,buffers[read]);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,pixels);gl.bindFramebuffer(gl.FRAMEBUFFER,null);const out=document.createElement('canvas');out.width=w;out.height=h;const ctx=out.getContext('2d'),image=ctx.createImageData(w,h),row=w*4;for(let y=0;y<h;y++)image.data.set(pixels.subarray(y*row,(y+1)*row),(h-1-y)*row);ctx.putImageData(image,0,0);return new Promise((resolve,reject)=>out.toBlob(blob=>blob?resolve(blob):reject(new Error('Image export failed')),'image/png'));}
 $('save').onclick=async()=>{try{toast('Preparing artwork…');const blob=await snapshotBlob(),file=new File([blob],'PsyFlo-'+Date.now()+'.png',{type:'image/png'});if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file],title:'PsyFlo artwork'});toast('Artwork ready');}else{const link=document.createElement('a');link.download=file.name;link.href=URL.createObjectURL(blob);link.click();setTimeout(()=>URL.revokeObjectURL(link.href),2000);toast('Artwork saved');}}catch(error){if(error?.name!=='AbortError')toast('Use an iPhone screenshot to save',2200);}};
 
-let wakeLock=null,presenting=false;
-async function reacquireWakeLock(){if(presenting&&document.visibilityState==='visible'&&navigator.wakeLock)try{wakeLock=await navigator.wakeLock.request('screen');}catch{}}
+async function reacquireWakeLock(){if((presenting||audioStream)&&document.visibilityState==='visible'&&navigator.wakeLock&&!wakeLock)try{wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener?.('release',()=>{wakeLock=null;});}catch{}}
+async function releaseWakeLockIfIdle(){if(presenting||audioStream)return;const lock=wakeLock;wakeLock=null;try{await lock?.release();}catch{}}
 async function enterPresentation(){presenting=true;document.body.classList.add('presenting');closeSheet();$('airplayTip').classList.add('show');setTimeout(()=>$('airplayTip').classList.remove('show'),5500);await reacquireWakeLock();try{await document.documentElement.requestFullscreen?.({navigationUI:'hide'});}catch{}try{await screen.orientation?.lock?.('landscape');}catch{}resize(true);}
-async function exitPresentation(){presenting=false;document.body.classList.remove('presenting');$('airplayTip').classList.remove('show');try{await wakeLock?.release();}catch{}wakeLock=null;try{if(document.fullscreenElement)await document.exitFullscreen();}catch{}try{screen.orientation?.unlock?.();}catch{}resize(true);bumpIdle();}
+async function exitPresentation(){presenting=false;document.body.classList.remove('presenting');$('airplayTip').classList.remove('show');await releaseWakeLockIfIdle();try{if(document.fullscreenElement)await document.exitFullscreen();}catch{}try{screen.orientation?.unlock?.();}catch{}resize(true);bumpIdle();}
 $('present').onclick=enterPresentation;$('exitPresent').onclick=exitPresentation;document.addEventListener('fullscreenchange',()=>{if(presenting&&!document.fullscreenElement&&document.fullscreenEnabled)exitPresentation();});
 
 let uiVisible=true,idleTimer;
