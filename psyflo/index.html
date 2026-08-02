@@ -181,14 +181,20 @@ vec2 symmetryPoint(vec2 p,int k){
  if(u_sym==8){int r=k;if(k>=4){p.x=-p.x;r=k-4;}return rot(p,float(r)*1.5707963);}
  return p;
 }
-vec3 paletteAt(float t,int palette){t=fract(t);if(palette==0)return .52+.48*cos(6.283*(t+vec3(.02,.27,.58)));if(palette==1)return .5+.5*cos(6.283*(t+vec3(.48,.16,.02)));if(palette==2)return .5+.5*cos(6.283*(t+vec3(.00,.08,.18)));if(palette==3)return .52+.48*cos(6.283*(t+vec3(.34,.06,.68)));if(palette==4)return .52+.48*cos(6.283*(t+vec3(.12,.52,.82)));return .48+.52*cos(6.283*(t+vec3(.72,.36,.08)));}
+vec3 paletteAt(float t,int palette){t=fract(t);if(palette==0)return .52+.48*cos(6.283*(t+vec3(.02,.27,.58)));if(palette==1)return .5+.5*cos(6.283*(t+vec3(.48,.16,.02)));if(palette==2)return .5+.5*cos(6.283*(t+vec3(.00,.08,.18)));if(palette==3)return .52+.48*cos(6.283*(t+vec3(.34,.06,.68)));if(palette==4)return .52+.48*cos(6.283*(t+vec3(.12,.52,.82)));if(palette==5)return .48+.52*cos(6.283*(t+vec3(.72,.36,.08)));if(palette==6)return .5+.5*cos(6.283*(t+vec3(.61,.08,.34)));return .5+.5*cos(6.283*(t+vec3(.78,.55,.16)));}
 vec3 pal(float t){float blend=clamp(u_transition,0.0,1.0);vec3 from=paletteAt(t,u_paletteFrom),to=paletteAt(t,u_palette);return mix(from,to,blend)*(1.0+.08*sin(3.1415926*blend));}
 vec3 hueDrift(vec3 c,float a){float co=cos(a),si=sin(a),grey=dot(c,vec3(.333333));return clamp(c*co+cross(vec3(.57735),c)*si+vec3(grey)*(1.0-co),0.0,2.0);}
-float styleShape(int visualStyle,float d,float radial,float t,vec2 p,vec2 q,float e){
+float styleShape(int visualStyle,float d,float radial,float t,vec2 p,vec2 q,float e,float field){
  if(visualStyle==0){float core=exp(-d*(92.0/e))*1.5;float wave=exp(-radial*(10.0-u_mid*1.8))*(.5+.5*sin(radial*(88.0+u_high*18.0)-t*(6.0+u_mid*2.0)));return core+wave*.20;}
  if(visualStyle==1){float core=pow(max(0.0,1.0-d*(50.0/e)),5.0);float ring=pow(max(0.0,1.0-abs(radial-.055-.014*sin(t*(2.7+u_mid)))*118.0),2.0);return core*2.0+ring*(.55+u_high*.22);}
  if(visualStyle==2){float beam=exp(-d*(115.0/e));float sparks=step(.978-u_high*.018,hash(floor((p-q)*180.0)+floor(t*(7.0+u_high*5.0))))*exp(-radial*5.2);return beam*.8+sparks*(1.05+u_high*.5);}
- float a=atan(p.y-q.y,p.x-q.x),petal=.5+.5*cos(a*6.0+radial*(24.0+u_mid*5.0)-t*(1.4+u_mid*.8));float bloom=exp(-radial*(6.5-u_bass*.8))*petal*petal;return bloom*(.54+u_mid*.18)+exp(-d*(78.0/e))*.72;
+ if(visualStyle==3){float a=atan(p.y-q.y,p.x-q.x),petal=.5+.5*cos(a*6.0+radial*(24.0+u_mid*5.0)-t*(1.4+u_mid*.8));float bloom=exp(-radial*(6.5-u_bass*.8))*petal*petal;return bloom*(.54+u_mid*.18)+exp(-d*(78.0/e))*.72;}
+ if(visualStyle==4){float ripple=sin(radial*(72.0+u_high*24.0)-t*(4.8+u_mid*2.4)+field*5.0),silk=exp(-abs(d-.012*ripple)*(150.0/e)),thread=exp(-d*(230.0/e));return silk*(.34+u_mid*.2)+thread*(.25+u_high*.3);}
+ if(visualStyle==5){float cloud=exp(-radial*(3.8-u_bass*.7)),fold=.35+.65*field,vein=exp(-d*(42.0/e));return cloud*fold*(.055+u_bass*.075)+vein*(.07+u_mid*.05);}
+ if(visualStyle==6){float tunnel=pow(.5+.5*cos(log(radial+.035)*(17.0+u_mid*3.0)-t*(3.2+u_bass*2.2)),7.0)*exp(-radial*1.9),spine=exp(-d*(105.0/e));return tunnel*(.14+u_bass*.18)+spine*.14;}
+ if(visualStyle==7){float ink=exp(-radial*(4.6-u_bass*.9))*(.42+.58*smoothstep(.2,.82,field)),filament=exp(-d*(64.0/e)),edge=pow(max(0.0,1.0-abs(radial-.11-.035*sin(t*.8+field*4.0))*34.0),2.0);return ink*(.08+u_mid*.05)+filament*.12+edge*.06;}
+ if(visualStyle==8){vec2 beamP=rot(p-q,t*.12+field*.7);float crossBeam=exp(-abs(beamP.x)*(150.0/e))+exp(-abs(beamP.y)*(150.0/e)),ray=exp(-d*(245.0/e)),pulse=.55+.45*sin(radial*(42.0+u_high*18.0)-t*(5.0+u_bass*2.0));return ray*(.28+u_high*.25)+crossBeam*pulse*.07*exp(-radial*2.8);}
+ float glassRing=pow(.5+.5*cos(radial*(68.0+u_mid*12.0)-t*(2.1+u_high*1.6)+field*3.0),8.0)*exp(-radial*3.3),lens=exp(-d*(55.0/e))*(.45+.55*field),halo=exp(-abs(radial-.075-.025*sin(t*.9))*(52.0/e));return glassRing*(.12+u_high*.08)+lens*.14+halo*(.1+u_bass*.08);
 }
 void main(){
  vec2 uv=v_uv,asp=vec2(u_res.x/u_res.y,1.0),p=(uv-.5)*asp;float t=u_time;
@@ -197,7 +203,7 @@ void main(){
  for(int i=0;i<5;i++){if(i<u_count){
   vec2 q0=(u_pts[i]-.5)*asp,r0=(u_prevPts[i]-.5)*asp;float pr=max(.045,u_press[i]);float e=u_energy*(1.0+u_audio*.62+u_bass*1.05+u_mid*.38+u_beat*.32);
   for(int k=0;k<8;k++){if(k<u_sym){
-   vec2 q=symmetryPoint(q0,k),r=symmetryPoint(r0,k);float d=seg(p,r,q),radial=length(p-q);vec3 ink=pal(t*(.032+u_mid*.01+u_high*.018)+radial*1.65+float(i)*.17+float(k)*.035+u_high*.08);float shape=mix(styleShape(u_styleFrom,d,radial,t,p,q,e),styleShape(u_style,d,radial,t,p,q,e),morph);add+=ink*shape*pr;
+   vec2 q=symmetryPoint(q0,k),r=symmetryPoint(r0,k);float d=seg(p,r,q),radial=length(p-q);vec3 ink=pal(t*(.032+u_mid*.01+u_high*.018)+radial*1.65+float(i)*.17+float(k)*.035+u_high*.08);float shape=mix(styleShape(u_styleFrom,d,radial,t,p,q,e,n),styleShape(u_style,d,radial,t,p,q,e,n),morph);add+=ink*shape*pr;
   }}
  }}
  add=hueDrift(add,u_chroma);add*=.58+u_audio*.36+u_bass*.62+u_mid*.28+u_high*.16+u_beat*.3;vec3 col=prev+add;col=col/(1.0+col*.4);gl_FragColor=vec4(col,1.0);
@@ -218,15 +224,15 @@ let style=0,styleFrom=0,palette=0,paletteFrom=0,visualTransition=1,transitionSta
 let qualityMode='auto',autoLevel=2,fpsSmooth=60,qualityCooldown=0,lowTicks=0,highTicks=0;
 let audioContext,analyser,audioData,audioStream,audioLoop=0,audioFloor=.025,lastBass=0,lastBeat=0,wakeLock=null,presenting=false,tvCanvasStream=null,nativeVideoFullscreen=false,lastTvFrame=0;
 const qualityLevels=[{name:'Eco',ratio:.78,mp:.42},{name:'Balanced',ratio:1.0,mp:.64},{name:'High',ratio:1.2,mp:.86},{name:'Ultra',ratio:1.38,mp:1.08}];
-const styleNames=['Liquid','Neon','Particles','Bloom'],symmetryNames={1:'Free',2:'Mirror 2',4:'Mirror 4',8:'Kaleido 8'};
-const ambientColors=[[.03,.1,.14],[.15,.02,.08],[.15,.05,.01],[.11,.03,.15],[.025,.07,.16],[.045,.025,.11]],ambientStops=[0,.14,.3,.5],ambientNames=['Off','Soft','Room','Full'];
+const styleNames=['Liquid','Neon','Particles','Bloom','Silk','Nebula','Prism','Cosmic Ink','Lasers','Dream Glass'],symmetryNames={1:'Free',2:'Mirror 2',4:'Mirror 4',8:'Kaleido 8'};
+const ambientColors=[[.03,.1,.14],[.15,.02,.08],[.15,.05,.01],[.11,.03,.15],[.025,.07,.16],[.045,.025,.11],[.13,.025,.09],[.025,.11,.08]],ambientStops=[0,.14,.3,.5],ambientNames=['Off','Soft','Room','Full'];
 const presets=[
- {name:'Aurora',style:0,palette:0,sym:4,energy:1.0,trail:.947},
- {name:'Neon Rush',style:1,palette:1,sym:2,energy:1.2,trail:.933},
- {name:'Solar Heat',style:0,palette:2,sym:8,energy:1.08,trail:.953},
- {name:'Ice Pulse',style:1,palette:4,sym:4,energy:.92,trail:.939},
- {name:'Candy Flip',style:3,palette:3,sym:8,energy:1.14,trail:.957},
- {name:'Deep Space',style:2,palette:5,sym:1,energy:.82,trail:.963}
+ {name:'Aurora',style:5,palette:0,sym:4,energy:1.0,trail:.951},
+ {name:'Neon Rush',style:8,palette:1,sym:2,energy:1.16,trail:.936},
+ {name:'Solar Heat',style:6,palette:2,sym:8,energy:1.06,trail:.948},
+ {name:'Ice Pulse',style:4,palette:4,sym:4,energy:.94,trail:.943},
+ {name:'Candy Flip',style:9,palette:6,sym:8,energy:1.1,trail:.954},
+ {name:'Deep Space',style:7,palette:5,sym:1,energy:.86,trail:.962}
 ];
 const pointers=new Map(),touchMemories=[],pointData=new Float32Array(10),prevPointData=new Float32Array(10),pressureData=new Float32Array(5);
 const autoPoints=[{prev:[.5,.5],ready:false,phase:.2},{prev:[.5,.5],ready:false,phase:3.35}];
@@ -287,11 +293,11 @@ function beginVisualTransition(nextStyle,nextPalette,duration=4200){if(nextStyle
 function selectPreset(index,announce=true){const preset=presets[index];beginVisualTransition(preset.style,preset.palette);symmetry=preset.sym;energy=preset.energy;trail=preset.trail;document.querySelectorAll('.preset').forEach((button,i)=>button.classList.toggle('active',i===index));$('presetName').textContent=preset.name;sync();if(announce)toast(preset.name+' loaded');}
 
 $('enter').onclick=async()=>{document.body.classList.add('app-ready');$('intro').classList.add('out');setTimeout(()=>$('intro')?.remove(),520);toast('Starting landscape TV controller…',2200);await toggleSound();};
-$('mode').onclick=()=>{beginVisualTransition((style+1)%styleNames.length,palette,2200);sync();toast(styleNames[style]+' · blending');};
-$('palette').onclick=()=>{beginVisualTransition(style,(palette+1)%6,1800);sync();toast('Colour '+(palette+1)+' · blending');};
+$('mode').onclick=()=>{beginVisualTransition((style+1)%styleNames.length,palette,3400);sync();toast(styleNames[style]+' · blending');};
+$('palette').onclick=()=>{beginVisualTransition(style,(palette+1)%8,2400);sync();toast('Colour '+(palette+1)+' · blending');};
 $('symmetry').onclick=()=>{symmetry=({1:2,2:4,4:8,8:1})[symmetry];sync();toast(symmetryNames[symmetry]);};
 $('ambientQuick').onclick=()=>{ambient=ambientStops[(nearestAmbientStop()+1)%ambientStops.length];updateAmbientUI();toast('Ambient Fill · '+ambientLabel());};
-$('trip').onclick=()=>{const index=Math.floor(Math.random()*presets.length),preset=presets[index],nextPalette=(preset.palette+1+Math.floor(Math.random()*5))%6;beginVisualTransition(preset.style,nextPalette,2600);symmetry=preset.sym;energy=Math.min(1.65,preset.energy*(.9+Math.random()*.3));trail=preset.trail;document.querySelectorAll('.preset').forEach((button,i)=>button.classList.toggle('active',i===index));$('presetName').textContent=preset.name;sync();toast('New trip · '+preset.name);};
+$('trip').onclick=()=>{const index=Math.floor(Math.random()*presets.length),preset=presets[index],nextPalette=(preset.palette+1+Math.floor(Math.random()*7))%8;beginVisualTransition(preset.style,nextPalette,4200);symmetry=preset.sym;energy=Math.min(1.65,preset.energy*(.9+Math.random()*.3));trail=preset.trail;document.querySelectorAll('.preset').forEach((button,i)=>button.classList.toggle('active',i===index));$('presetName').textContent=preset.name;sync();toast('New trip · '+preset.name);};
 $('clear').onclick=clearFlow;
 function closeSheet(){$('sheet').classList.remove('open');$('more').setAttribute('aria-expanded','false');$('more').querySelector('.txt').textContent='Controls';}
 $('more').onclick=()=>{const open=$('sheet').classList.toggle('open');$('more').setAttribute('aria-expanded',String(open));$('more').querySelector('.txt').textContent=open?'Close':'Controls';bumpIdle();};
@@ -302,10 +308,10 @@ $('contrast').oninput=e=>{contrast=Number(e.target.value);$('contrastOut').value
 $('ambient').oninput=e=>{ambient=Number(e.target.value);updateAmbientUI();};
 $('quality').onclick=()=>{qualityMode=qualityMode==='auto'?'high':qualityMode==='high'?'balanced':qualityMode==='balanced'?'eco':'auto';lowTicks=highTicks=0;resize(true);toast('Quality: '+$('quality').textContent);};
 
-const floStates=[{name:'CALM',style:0,palette:5},{name:'LIFT',style:3,palette:0},{name:'DRIVE',style:1,palette:1},{name:'PEAK',style:2,palette:4}];
+const floStates=[{name:'CALM',style:5,palette:5},{name:'LIFT',style:4,palette:0},{name:'DRIVE',style:8,palette:1},{name:'PEAK',style:6,palette:6}];
 function floBandForEnergy(value,current){if(current<0)return value<.18?0:value<.4?1:value<.68?2:3;if(current===0)return value>.25?1:0;if(current===1)return value<.13?0:value>.5?2:1;if(current===2)return value<.33?1:value>.76?3:2;return value<.58?2:3;}
 function applyFloBand(band,stamp){const state=floStates[band];floBand=band;floCandidate=band;lastFloShift=stamp;beginVisualTransition(state.style,state.palette,5200);document.querySelectorAll('.preset').forEach(button=>button.classList.remove('active'));$('presetName').textContent='FLO · '+state.name;sync();}
-function updateFlo(stamp){if(!floAuto)return;const rawEnergy=Math.min(1,audio*.46+audioBass*.34+audioMid*.12+audioHigh*.08+beatPulse*.14);floEnergy+=(rawEnergy-floEnergy)*(rawEnergy>floEnergy?.035:.016);const next=floBandForEnergy(floEnergy,floBand);if(floBand<0){floCandidate=next;floCandidateSince=stamp;applyFloBand(next,stamp);return;}if(next===floBand){floCandidate=floBand;floCandidateSince=stamp;if(floBand===3&&beatPulse>.82&&visualTransition>.98&&stamp-lastFloPalette>11000){beginVisualTransition(style,(palette+1)%6,4200);lastFloPalette=stamp;sync();}return;}if(next!==floCandidate){floCandidate=next;floCandidateSince=stamp;return;}const stableFor=stamp-floCandidateSince,phraseReady=stableFor>1400&&stamp-lastFloShift>6200&&visualTransition>.92;if(phraseReady&&(beatPulse>.68||stableFor>3000))applyFloBand(next,stamp);}
+function updateFlo(stamp){if(!floAuto)return;const rawEnergy=Math.min(1,audio*.46+audioBass*.34+audioMid*.12+audioHigh*.08+beatPulse*.14);floEnergy+=(rawEnergy-floEnergy)*(rawEnergy>floEnergy?.035:.016);const next=floBandForEnergy(floEnergy,floBand);if(floBand<0){floCandidate=next;floCandidateSince=stamp;applyFloBand(next,stamp);return;}if(next===floBand){floCandidate=floBand;floCandidateSince=stamp;if(floBand===3&&beatPulse>.82&&visualTransition>.98&&stamp-lastFloPalette>11000){beginVisualTransition(style,(palette+1)%8,4200);lastFloPalette=stamp;sync();}return;}if(next!==floCandidate){floCandidate=next;floCandidateSince=stamp;return;}const stableFor=stamp-floCandidateSince,phraseReady=stableFor>1400&&stamp-lastFloShift>6200&&visualTransition>.92;if(phraseReady&&(beatPulse>.68||stableFor>3000))applyFloBand(next,stamp);}
 async function toggleFlo(){if(floAuto){floAuto=false;floBand=floCandidate=-1;sync();releaseWakeLockIfIdle();toast('Flo off');return;}if(!audioStream)await toggleSound();if(!audioStream)return;floAuto=true;floBand=floCandidate=-1;floCandidateSince=lastFloShift=0;floEnergy=Math.min(1,audio*.46+audioBass*.34+audioMid*.12+audioHigh*.08);updateFlo(performance.now());sync();await reacquireWakeLock();toast('Flo follows musical phrases',2100);setTimeout(()=>setUi(false),1100);}
 function stopSound(){cancelAnimationFrame(audioLoop);audioLoop=0;audio=audioBass=audioMid=audioHigh=beatPulse=lastBass=0;audioFloor=.025;const stream=audioStream;audioStream=null;stream?.getTracks().forEach(track=>track.stop());audioContext?.close();audioContext=null;autoPoints.forEach(actor=>actor.ready=false);floAuto=false;floBand=floCandidate=-1;$('sound').classList.remove('on');$('sound').innerHTML='◉<br>Sound';sync();releaseWakeLockIfIdle();toast('Hands-free sound off');}
 async function toggleSound(){if(audioStream){stopSound();return;}try{audioStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});const liveStream=audioStream;liveStream.getAudioTracks()[0]?.addEventListener('ended',()=>{if(audioStream===liveStream)stopSound();},{once:true});audioContext=new(window.AudioContext||window.webkitAudioContext)();await audioContext.resume();const source=audioContext.createMediaStreamSource(audioStream);analyser=audioContext.createAnalyser();analyser.fftSize=512;analyser.smoothingTimeConstant=.42;source.connect(analyser);audioData=new Uint8Array(analyser.frequencyBinCount);audioFloor=.025;lastBass=lastBeat=0;autoPoints.forEach(actor=>actor.ready=false);const clamp01=value=>Math.max(0,Math.min(1,value)),follow=(current,target,attack,release)=>current+(target-current)*(target>current?attack:release),band=(low,high)=>{const binHz=audioContext.sampleRate/analyser.fftSize,start=Math.max(1,Math.floor(low/binHz)),end=Math.min(audioData.length,Math.ceil(high/binHz));let sum=0;for(let i=start;i<end;i++){const value=audioData[i]/255;sum+=value*value;}return Math.sqrt(sum/Math.max(1,end-start));};const listen=()=>{analyser.getByteFrequencyData(audioData);const rawBass=band(45,220),rawMid=band(220,1800),rawHigh=band(1800,8000),rawLevel=rawBass*.48+rawMid*.34+rawHigh*.18;audioFloor+=(rawLevel-audioFloor)*(rawLevel<audioFloor ? .075 : .0035);const level=clamp01((rawLevel-audioFloor*.88)*3.15),bass=clamp01((rawBass-audioFloor*.72)*2.55),mid=clamp01((rawMid-audioFloor*.9)*2.9),high=clamp01((rawHigh-audioFloor)*3.3);audio=follow(audio,level,.34,.08);audioBass=follow(audioBass,bass,.42,.1);audioMid=follow(audioMid,mid,.3,.09);audioHigh=follow(audioHigh,high,.26,.08);const stamp=performance.now(),onset=bass-lastBass;lastBass=bass;if(onset>.055&&bass>.11&&stamp-lastBeat>165){beatPulse=1;lastBeat=stamp;}updateFlo(stamp);audioLoop=requestAnimationFrame(listen);};listen();$('sound').classList.add('on');$('sound').innerHTML='◉<br>Sound Auto';await reacquireWakeLock();toast('Music sync active · bass, mids and highs',2300);}catch(error){console.warn(error);const stream=audioStream;audioStream=null;stream?.getTracks().forEach(track=>track.stop());audioContext?.close();audioContext=null;toast('Allow microphone access in Safari settings',2400);}}
